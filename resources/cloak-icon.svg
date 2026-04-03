@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background gradient: deep dark with subtle teal tint -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0F1419"/>
+      <stop offset="100%" stop-color="#131D24"/>
+    </linearGradient>
+    <!-- Cloak gradient: teal fading to transparent -->
+    <linearGradient id="cloak" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#2CB1BC" stop-opacity="1"/>
+      <stop offset="60%" stop-color="#2CB1BC" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#2CB1BC" stop-opacity="0.08"/>
+    </linearGradient>
+    <!-- Inner glow -->
+    <radialGradient id="glow" cx="0.5" cy="0.35" r="0.5">
+      <stop offset="0%" stop-color="#2CB1BC" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#2CB1BC" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Hood shadow -->
+    <linearGradient id="hoodShade" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#3DD8E5"/>
+      <stop offset="100%" stop-color="#1A8A93"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="1024" height="1024" rx="220" ry="220" fill="url(#bg)"/>
+
+  <!-- Subtle ambient glow behind the cloak -->
+  <ellipse cx="512" cy="420" rx="280" ry="260" fill="url(#glow)"/>
+
+  <!-- The Cloak shape: abstract hood/cape that fades out at bottom -->
+  <!-- Hood/top curve -->
+  <path d="
+    M 512 180
+    C 380 180, 270 260, 260 380
+    C 252 470, 280 540, 310 620
+    C 340 700, 360 760, 370 840
+    L 370 840
+    C 380 780, 400 720, 430 660
+    C 460 600, 490 560, 512 520
+    C 534 560, 564 600, 594 660
+    C 624 720, 644 780, 654 840
+    L 654 840
+    C 664 760, 684 700, 714 620
+    C 744 540, 772 470, 764 380
+    C 754 260, 644 180, 512 180
+    Z
+  " fill="url(#cloak)"/>
+
+  <!-- Hood inner highlight — the face opening -->
+  <path d="
+    M 512 240
+    C 420 240, 360 300, 355 380
+    C 350 440, 370 490, 400 540
+    C 430 590, 470 540, 512 500
+    C 554 540, 594 590, 624 540
+    C 654 490, 674 440, 669 380
+    C 664 300, 604 240, 512 240
+    Z
+  " fill="url(#bg)" opacity="0.85"/>
+
+  <!-- Small bright dot — the "eye" / AI presence -->
+  <circle cx="512" cy="390" r="18" fill="#2CB1BC" opacity="0.9"/>
+  <circle cx="512" cy="390" r="8" fill="#FFFFFF" opacity="0.95"/>
+
+  <!-- Subtle "C" letterform hint on the left of the hood -->
+</svg>
