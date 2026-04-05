@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<style>
+@font-face {
+    font-family: 'BigShoulders';
+    src: url('file:///Users/jaypokharna/.claude/plugins/marketplaces/claude-superkit/canvas-super-creator/skills/canvas-super-creator/canvas-fonts/BigShoulders-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'JetBrainsMono';
+    src: url('file:///Users/jaypokharna/.claude/plugins/marketplaces/claude-superkit/canvas-super-creator/skills/canvas-super-creator/canvas-fonts/JetBrainsMono-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'JetBrainsMono';
+    src: url('file:///Users/jaypokharna/.claude/plugins/marketplaces/claude-superkit/canvas-super-creator/skills/canvas-super-creator/canvas-fonts/JetBrainsMono-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1280px; height: 640px; overflow: hidden; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+    --bg: #070D14;
+    --fg: #E8F0F5;
+    --accent: #00E5FF;
+    --accent2: #1DE9B6;
+    --accent3: #2CB1BC;
+    --muted: #121E2A;
+    --dim: #1A2D3E;
+    position: relative;
+    background: var(--bg);
+    font-family: -apple-system, system-ui, sans-serif;
+}
+
+/* Code grid - masked to center */
+.code-grid {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background:
+        repeating-linear-gradient(0deg, rgba(0,229,255,0.025) 0px, rgba(0,229,255,0.025) 1px, transparent 1px, transparent 40px),
+        repeating-linear-gradient(90deg, rgba(0,229,255,0.025) 0px, rgba(0,229,255,0.025) 1px, transparent 1px, transparent 40px);
+    mask-image: radial-gradient(ellipse 90% 80% at 35% 50%, black 10%, transparent 60%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 80% at 35% 50%, black 10%, transparent 60%);
+    z-index: 1;
+}
+
+/* Gradient orbs */
+.orb { position: absolute; border-radius: 50%; pointer-events: none; z-index: 1; }
+.orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(0,229,255,0.18) 0%, transparent 70%); top: -150px; left: -50px; }
+.orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(29,233,182,0.12) 0%, transparent 70%); bottom: -200px; right: 50px; }
+.orb-3 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(44,177,188,0.1) 0%, transparent 70%); top: 50%; left: 55%; transform: translateY(-50%); }
+
+/* Noise grain overlay */
+.noise {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 10; pointer-events: none; opacity: 0.35;
+    mix-blend-mode: overlay;
+}
+
+/* Accent lines */
+.accent-line {
+    position: absolute; z-index: 2;
+}
+.line-h {
+    left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent 5%, rgba(0,229,255,0.15) 25%, rgba(29,233,182,0.2) 50%, rgba(0,229,255,0.15) 75%, transparent 95%);
+}
+.line-h-1 { top: 28%; }
+.line-h-2 { top: 72%; }
+.line-v {
+    top: 0; bottom: 0; width: 1px;
+    background: linear-gradient(180deg, transparent 10%, rgba(0,229,255,0.1) 40%, rgba(29,233,182,0.15) 60%, transparent 90%);
+}
+.line-v-1 { left: 36%; }
+
+/* Floating particles */
+.particle { position: absolute; border-radius: 50%; z-index: 5; }
+.p1 { width: 4px; height: 4px; background: var(--accent); top: 15%; left: 45%; opacity: 0.6; box-shadow: 0 0 12px var(--accent); }
+.p2 { width: 3px; height: 3px; background: var(--accent2); top: 70%; left: 55%; opacity: 0.5; box-shadow: 0 0 10px var(--accent2); }
+.p3 { width: 5px; height: 5px; background: var(--accent); top: 25%; right: 15%; opacity: 0.4; box-shadow: 0 0 16px var(--accent); }
+.p4 { width: 3px; height: 3px; background: var(--accent2); bottom: 20%; right: 30%; opacity: 0.45; box-shadow: 0 0 8px var(--accent2); }
+.p5 { width: 2px; height: 2px; background: var(--accent); top: 55%; left: 32%; opacity: 0.5; box-shadow: 0 0 6px var(--accent); }
+.p6 { width: 4px; height: 4px; background: var(--accent3); top: 40%; right: 8%; opacity: 0.35; box-shadow: 0 0 14px var(--accent3); }
+.p7 { width: 3px; height: 3px; background: var(--accent); bottom: 35%; left: 60%; opacity: 0.3; box-shadow: 0 0 10px var(--accent); }
+.p8 { width: 2px; height: 2px; background: var(--accent2); top: 10%; right: 25%; opacity: 0.55; box-shadow: 0 0 8px var(--accent2); }
+
+/* Content layer */
+.content {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; align-items: center;
+    padding: 0 80px;
+    z-index: 5;
+}
+
+/* Cloak icon container */
+.icon-area {
+    flex-shrink: 0;
+    width: 280px; height: 340px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 60px;
+}
+
+/* Glow ring behind icon */
+.icon-ring {
+    position: absolute;
+    width: 240px; height: 240px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0,229,255,0.12);
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+}
+.icon-ring-2 {
+    position: absolute;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    border: 1px solid rgba(29,233,182,0.06);
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+}
+
+/* Cloak SVG icon */
+.cloak-icon { position: relative; z-index: 2; }
+
+/* Text area */
+.text-area {
+    display: flex; flex-direction: column; gap: 0;
+}
+.title {
+    font-family: 'BigShoulders', sans-serif;
+    font-size: 96px; font-weight: 800;
+    color: var(--fg);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    text-shadow: 0 0 60px rgba(0,229,255,0.15);
+}
+.tagline {
+    font-family: 'JetBrainsMono', monospace;
+    font-size: 18px; font-weight: 400;
+    margin-top: 12px;
+    letter-spacing: 0.04em;
+}
+.tagline .t1 { color: rgba(0,229,255,0.7); }
+.tagline .t2 { color: var(--fg); font-weight: 500; }
+
+/* Gradient divider */
+.divider {
+    width: 380px; height: 2px; margin-top: 24px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3), var(--accent2));
+    border-radius: 1px;
+    box-shadow: 0 0 12px rgba(0,229,255,0.3);
+}
+
+/* Feature pills */
+.pills {
+    display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap;
+}
+.pill {
+    font-family: 'JetBrainsMono', monospace;
+    font-size: 12px; font-weight: 500;
+    padding: 6px 16px;
+    border-radius: 20px;
+    letter-spacing: 0.03em;
+}
+.pill-1 { background: rgba(0,229,255,0.1); color: #00E5FF; border: 1px solid rgba(0,229,255,0.25); box-shadow: 0 0 12px rgba(0,229,255,0.1); }
+.pill-2 { background: rgba(44,177,188,0.1); color: #2CB1BC; border: 1px solid rgba(44,177,188,0.25); }
+.pill-3 { background: rgba(29,233,182,0.1); color: #1DE9B6; border: 1px solid rgba(29,233,182,0.25); }
+.pill-4 { background: rgba(0,229,255,0.08); color: #00E5FF; border: 1px solid rgba(0,229,255,0.2); }
+.pill-5 { background: rgba(29,233,182,0.08); color: #1DE9B6; border: 1px solid rgba(29,233,182,0.2); }
+
+/* Platform badges */
+.platforms {
+    display: flex; gap: 12px; margin-top: 20px;
+}
+.platform {
+    font-family: 'JetBrainsMono', monospace;
+    font-size: 11px; font-weight: 400;
+    color: rgba(0,229,255,0.5);
+    padding: 4px 12px;
+    border: 1px solid rgba(0,229,255,0.1);
+    border-radius: 4px;
+    background: rgba(0,229,255,0.03);
+    letter-spacing: 0.05em;
+}
+
+/* Version tag — bottom right */
+.version {
+    position: absolute; bottom: 30px; right: 50px;
+    font-family: 'JetBrainsMono', monospace;
+    font-size: 12px; color: rgba(0,229,255,0.25);
+    z-index: 5;
+    letter-spacing: 0.08em;
+}
+</style>
+</head>
+<body>
+
+<!-- Background layers -->
+<div class="code-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- Accent lines -->
+<div class="accent-line line-h line-h-1"></div>
+<div class="accent-line line-h line-h-2"></div>
+<div class="accent-line line-v line-v-1"></div>
+
+<!-- Particles -->
+<div class="particle p1"></div>
+<div class="particle p2"></div>
+<div class="particle p3"></div>
+<div class="particle p4"></div>
+<div class="particle p5"></div>
+<div class="particle p6"></div>
+<div class="particle p7"></div>
+<div class="particle p8"></div>
+
+<!-- Noise overlay -->
+<svg class="noise" width="100%" height="100%">
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter>
+  <rect width="100%" height="100%" filter="url(#grain)"/>
+</svg>
+
+<!-- Content -->
+<div class="content">
+    <!-- Icon -->
+    <div class="icon-area">
+        <div class="icon-ring"></div>
+        <div class="icon-ring-2"></div>
+        <svg class="cloak-icon" width="200" height="280" viewBox="0 0 200 280">
+            <defs>
+                <linearGradient id="cg" x1="0.5" y1="0" x2="0.5" y2="1">
+                    <stop offset="0%" stop-color="#00E5FF" stop-opacity="1"/>
+                    <stop offset="35%" stop-color="#2CB1BC" stop-opacity="0.9"/>
+                    <stop offset="70%" stop-color="#1DE9B6" stop-opacity="0.45"/>
+                    <stop offset="100%" stop-color="#1DE9B6" stop-opacity="0.03"/>
+                </linearGradient>
+                <linearGradient id="ci" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#071520"/>
+                    <stop offset="100%" stop-color="#0A1E2E"/>
+                </linearGradient>
+                <radialGradient id="eg" cx="0.5" cy="0.42" r="0.15">
+                    <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="#00E5FF" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
+            <!-- Hood -->
+            <path d="M 100 10 C 55 10, 15 55, 12 115 C 9 160, 25 195, 45 230 C 60 255, 70 270, 75 280 C 80 265, 88 250, 95 235 C 98 228, 99 222, 100 215 C 101 222, 102 228, 105 235 C 112 250, 120 265, 125 280 C 130 270, 140 255, 155 230 C 175 195, 191 160, 188 115 C 185 55, 145 10, 100 10 Z" fill="url(#cg)"/>
+            <!-- Face void -->
+            <path d="M 100 48 C 72 48, 50 72, 48 105 C 47 130, 56 152, 73 172 C 82 183, 91 176, 100 165 C 109 176, 118 183, 127 172 C 144 152, 153 130, 152 105 C 150 72, 128 48, 100 48 Z" fill="url(#ci)" opacity="0.92"/>
+            <!-- Eye glow -->
+            <circle cx="100" cy="112" r="24" fill="url(#eg)"/>
+            <circle cx="100" cy="112" r="10" fill="#00E5FF" opacity="0.85"/>
+            <circle cx="100" cy="112" r="4" fill="#fff" opacity="0.95"/>
+        </svg>
+    </div>
+
+    <!-- Text -->
+    <div class="text-area">
+        <div class="title">CLOAK</div>
+        <div class="tagline">
+            <span class="t1">Invisible overlay for</span>
+            <span class="t2"> Claude Code</span>
+        </div>
+        <div class="divider"></div>
+        <div class="pills">
+            <span class="pill pill-1">Stealth</span>
+            <span class="pill pill-2">Multi-Tab</span>
+            <span class="pill pill-3">Voice</span>
+            <span class="pill pill-4">Screenshots</span>
+            <span class="pill pill-5">Skills</span>
+        </div>
+        <div class="platforms">
+            <span class="platform">macOS</span>
+            <span class="platform">Windows</span>
+        </div>
+    </div>
+</div>
+
+<div class="version">v0.2.0</div>
+
+</body></html>
