@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, CaretDown, Check, FolderOpen, Plus, X, ShieldCheck, DownloadSimple } from '@phosphor-icons/react'
-import { useSessionStore, PROVIDERS, AVAILABLE_MODELS, findProviderModel } from '../stores/sessionStore'
-import type { ProviderId } from '../../shared/types'
+import { Terminal, CaretDown, Check, FolderOpen, Plus, X, ShieldCheck } from '@phosphor-icons/react'
+import { useSessionStore, PROVIDERS } from '../stores/sessionStore'
 import { usePopoverLayer } from './PopoverLayer'
 import { useColors } from '../theme'
 
@@ -55,28 +54,21 @@ function ModelPicker() {
     setOpen((o) => !o)
   }
 
+  const isCodex = preferredProvider === 'codex'
+  const claudeModels = PROVIDERS.claude.models
+
   const activeLabel = (() => {
+    if (isCodex) return 'Codex'
     if (preferredModel) {
-      const pm = findProviderModel(preferredModel)
-      if (pm) {
-        return pm.provider === 'claude' ? pm.label : `${PROVIDERS[pm.provider].label} / ${pm.label}`
-      }
-      return preferredModel
+      const m = claudeModels.find((m) => m.modelId === preferredModel)
+      return m?.label || preferredModel
     }
     if (tab?.sessionModel) {
-      const m = AVAILABLE_MODELS.find((m) => m.id === tab.sessionModel)
+      const m = claudeModels.find((m) => m.modelId === tab.sessionModel)
       return m?.label || tab.sessionModel
     }
-    return PROVIDERS.claude.models[0].label
+    return claudeModels[0].label
   })()
-
-  const handleInstallCodex = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    installCodex()
-    setOpen(false)
-  }
-
-  const providerEntries = Object.entries(PROVIDERS) as Array<[ProviderId, typeof PROVIDERS[ProviderId]]>
 
   return (
     <>
@@ -107,7 +99,7 @@ function ModelPicker() {
             position: 'fixed',
             bottom: pos.bottom,
             left: pos.left,
-            width: 210,
+            width: 192,
             pointerEvents: 'auto',
             background: colors.popoverBg,
             backdropFilter: 'blur(20px)',
@@ -117,50 +109,45 @@ function ModelPicker() {
           }}
         >
           <div className="py-1">
-            {providerEntries.map(([providerId, provider], providerIdx) => (
-              <React.Fragment key={providerId}>
-                {providerIdx > 0 && (
-                  <div className="mx-2 my-1" style={{ height: 1, background: colors.popoverBorder }} />
-                )}
-                {/* Provider section header */}
-                <div
-                  className="px-3 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider flex items-center justify-between"
-                  style={{ color: colors.textTertiary }}
+            {/* Claude models */}
+            {claudeModels.map((m) => {
+              const isSelected = !isCodex && (preferredModel === m.modelId || (!preferredModel && m.modelId === claudeModels[0].modelId))
+              return (
+                <button
+                  key={m.modelId}
+                  onClick={() => { setPreferredModel('claude', m.modelId); setOpen(false) }}
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
+                  style={{
+                    color: isSelected ? colors.textPrimary : colors.textSecondary,
+                    fontWeight: isSelected ? 600 : 400,
+                  }}
                 >
-                  <span>{provider.label}{providerId === 'codex' ? ' (OpenAI)' : ''}</span>
-                  {providerId === 'codex' && (
-                    <button
-                      onClick={handleInstallCodex}
-                      className="flex items-center gap-0.5 text-[9px] transition-opacity hover:opacity-80"
-                      style={{ color: colors.accent }}
-                      title="Install Codex CLI"
-                    >
-                      <DownloadSimple size={9} />
-                      Install
-                    </button>
-                  )}
-                </div>
-                {/* Model options */}
-                {provider.models.map((m) => {
-                  const isSelected = preferredModel === m.modelId ||
-                    (!preferredModel && providerId === 'claude' && m.modelId === provider.models[0].modelId)
-                  return (
-                    <button
-                      key={m.modelId}
-                      onClick={() => { setPreferredModel(providerId, m.modelId); setOpen(false) }}
-                      className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
-                      style={{
-                        color: isSelected ? colors.textPrimary : colors.textSecondary,
-                        fontWeight: isSelected ? 600 : 400,
-                      }}
-                    >
-                      {m.label}
-                      {isSelected && <Check size={12} style={{ color: colors.accent }} />}
-                    </button>
+                  {m.label}
+                  {isSelected && <Check size={12} style={{ color: colors.accent }} />}
+                </button>
                   )
                 })}
-              </React.Fragment>
-            ))}
+
+            {/* Divider + Codex toggle */}
+            <div className="mx-2 my-1" style={{ height: 1, background: colors.popoverBorder }} />
+            <button
+              onClick={() => {
+                if (isCodex) {
+                  setPreferredModel('claude', claudeModels[0].modelId)
+                } else {
+                  setPreferredModel('codex', PROVIDERS.codex.models[0].modelId)
+                }
+                setOpen(false)
+              }}
+              className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
+              style={{
+                color: isCodex ? colors.accent : colors.textSecondary,
+                fontWeight: isCodex ? 600 : 400,
+              }}
+            >
+              <span>{isCodex ? 'Switch to Claude' : 'Switch to Codex'}</span>
+              {isCodex && <Check size={12} style={{ color: colors.accent }} />}
+            </button>
           </div>
         </motion.div>,
         popoverLayer,

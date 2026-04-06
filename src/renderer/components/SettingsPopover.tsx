@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { DotsThree, Bell, ArrowsOutSimple, Moon, EyeSlash, SignOut, Camera, Keyboard } from '@phosphor-icons/react'
+import { DotsThree, Bell, ArrowsOutSimple, Moon, EyeSlash, SignOut, Camera, Keyboard, ArrowsLeftRight } from '@phosphor-icons/react'
 import { ShortcutEditor } from './ShortcutEditor'
 import { useThemeStore } from '../theme'
-import { useSessionStore } from '../stores/sessionStore'
+import { useSessionStore, PROVIDERS } from '../stores/sessionStore'
+import type { ProviderId } from '../../shared/types'
 import { usePopoverLayer } from './PopoverLayer'
 import { useColors } from '../theme'
 
@@ -65,6 +66,8 @@ export function SettingsPopover() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const preferredProvider = useSessionStore((s) => s.preferredProvider)
+  const setPreferredModel = useSessionStore((s) => s.setPreferredModel)
   const [shortcutEditorOpen, setShortcutEditorOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -183,6 +186,39 @@ export function SettingsPopover() {
                   colors={colors}
                   label="Toggle full width panel"
                 />
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: colors.popoverBorder }} />
+
+            {/* AI Provider toggle */}
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ArrowsLeftRight size={14} style={{ color: colors.textTertiary }} />
+                  <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
+                    AI Provider
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  {(Object.keys(PROVIDERS) as ProviderId[]).map((id) => {
+                    const isActive = (preferredProvider || 'claude') === id
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setPreferredModel(id, PROVIDERS[id].models[0].modelId)}
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors"
+                        style={{
+                          background: isActive ? colors.accent + '22' : 'transparent',
+                          color: isActive ? colors.accent : colors.textMuted,
+                          border: `1px solid ${isActive ? colors.accent + '44' : colors.containerBorder}`,
+                        }}
+                      >
+                        {PROVIDERS[id].label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 

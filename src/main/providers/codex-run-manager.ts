@@ -21,16 +21,19 @@ export interface CodexRunHandle {
   stderrTail: string[]
   stdoutTail: string[]
   model: string | null
+  toolCallCount: number
 }
 
 /**
- * CodexRunManager: spawns one `codex` process per run, parses plain text stdout,
+ * CodexRunManager: spawns `codex exec --json` per run, parses JSONL events,
  * emits normalized events compatible with ControlPlane's event routing.
  *
- * Events emitted (same contract as RunManager):
- *  - 'normalized' (runId, NormalizedEvent)
- *  - 'exit' (runId, code, signal, sessionId)
- *  - 'error' (runId, Error)
+ * Codex JSONL event types:
+ *  - thread.started   { thread_id }
+ *  - turn.started     {}
+ *  - item.started     { item: { id, type, command?, status? } }
+ *  - item.completed   { item: { id, type, text?, command?, aggregated_output?, exit_code? } }
+ *  - turn.completed   { usage: { input_tokens, cached_input_tokens, output_tokens } }
  */
 export class CodexRunManager extends EventEmitter {
   private activeRuns = new Map<string, CodexRunHandle>()
@@ -62,6 +65,7 @@ export class CodexRunManager extends EventEmitter {
       stderrTail: [],
       stdoutTail: [],
       model: options.model || null,
+      toolCallCount: 0,
     }
 
     // Pre-flight: check binary exists
@@ -71,7 +75,7 @@ export class CodexRunManager extends EventEmitter {
       setImmediate(() => {
         const evt: NormalizedEvent = {
           type: 'error',
-          message: 'Codex CLI is not installed. Use the model picker menu to install it, or run: npm install -g @openai/codex',
+          message: 'Codex CLI is not installed. Run: npm install -g @openai/codex',
           isError: true,
         }
         this.emit('normalized', requestId, evt)
@@ -81,31 +85,43 @@ export class CodexRunManager extends EventEmitter {
       return handle
     }
 
-    // Pre-flight: check OPENAI_API_KEY
-    if (!process.env.OPENAI_API_KEY) {
-      log(`OPENAI_API_KEY not set [${requestId}]`)
-      this.activeRuns.set(requestId, handle)
-      setImmediate(() => {
-        const evt: NormalizedEvent = {
-          type: 'error',
-          message: 'OPENAI_API_KEY is not set. Add it to your environment variables and restart the app.',
-          isError: true,
-        }
-        this.emit('normalized', requestId, evt)
-        this._finishRun(requestId, handle)
-        this.emit('exit', requestId, 1, null, null)
-      })
-      return handle
-    }
+    // Build args: codex exec --json [flags] "prompt"
+    const args: string[] = ['exec', '--json']
 
-    // Build args: codex --full-auto -q "prompt"
-    const args: string[] = ['--full-auto', '-q']
+    // Permission/sandbox modes
+    if (options.permissionMode === 'auto') {
+      args.push('--full-auto')
+    } else if (options.permissionMode === 'plan') {
+      args.push('--sandbox', 'read-only')
+    } else {
+      // 'ask' mode — sandboxed with approval on request
+      args.push('--sandbox', 'workspace-write', '-a', 'on-request')
+    }
 
     if (options.model) {
       args.push('--model', options.model)
     }
 
-    // The prompt is passed as the last positional argument
+    // Working directory
+    args.push('-C', cwd)
+
+    // Additional directories
+    if (options.addDirs && options.addDirs.length > 0) {
+      for (const dir of options.addDirs) {
+        args.push('--add-dir', dir)
+      }
+    }
+
+    // Image attachments
+    if (options.images && options.images.length > 0) {
+      for (const img of options.images) {
+        // Images come as base64 data — write to temp file and pass path
+        // But we also have file-path attachments — check if there's a path
+        // The RunOptions.images are base64, but attachments with paths are handled separately
+      }
+    }
+
+    // Prompt as last positional argument
     args.push(options.prompt)
 
     if (DEBUG) {
@@ -125,34 +141,41 @@ export class CodexRunManager extends EventEmitter {
     handle.process = child
     handle.pid = child.pid || null
 
-    // Generate a synthetic session ID for this run
-    const syntheticSessionId = `codex-${requestId.substring(0, 8)}`
-    handle.sessionId = syntheticSessionId
-
-    // Emit synthetic session_init on first stdout data
     let initEmitted = false
+    let lineBuffer = ''
 
-    // ─── stdout → text chunks ───
+    // ─── stdout → JSONL parsing ───
     child.stdout?.setEncoding('utf-8')
     child.stdout?.on('data', (data: string) => {
-      if (!initEmitted) {
-        initEmitted = true
-        const initEvt: NormalizedEvent = {
-          type: 'session_init',
-          sessionId: syntheticSessionId,
-          tools: [],
-          model: options.model || 'codex',
-          mcpServers: [],
-          skills: [],
-          version: 'codex-cli',
+      lineBuffer += data
+
+      // Process complete lines
+      const lines = lineBuffer.split('\n')
+      lineBuffer = lines.pop() || '' // Keep incomplete last line in buffer
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        this._ringPush(handle.stdoutTail, trimmed.substring(0, 300))
+
+        try {
+          const event = JSON.parse(trimmed)
+          this._handleCodexEvent(requestId, handle, event, initEmitted)
+
+          // Mark init as emitted after first thread.started
+          if (event.type === 'thread.started') {
+            initEmitted = true
+          }
+        } catch {
+          // Non-JSON line — treat as raw text
+          if (!initEmitted) {
+            initEmitted = true
+            this._emitInit(requestId, handle, options)
+          }
+          const textEvt: NormalizedEvent = { type: 'text_chunk', text: trimmed + '\n' }
+          this.emit('normalized', requestId, textEvt)
         }
-        this.emit('normalized', requestId, initEvt)
       }
-
-      this._ringPush(handle.stdoutTail, data.substring(0, 300))
-
-      const textEvt: NormalizedEvent = { type: 'text_chunk', text: data }
-      this.emit('normalized', requestId, textEvt)
     })
 
     // ─── stderr ring buffer ───
@@ -169,23 +192,20 @@ export class CodexRunManager extends EventEmitter {
     child.on('close', (code, signal) => {
       log(`Process closed [${requestId}]: code=${code} signal=${signal}`)
 
-      // If we never emitted init (no output at all), emit it now so the UI transitions properly
+      // Process remaining buffer
+      if (lineBuffer.trim()) {
+        try {
+          const event = JSON.parse(lineBuffer.trim())
+          this._handleCodexEvent(requestId, handle, event, initEmitted)
+        } catch {}
+      }
+
+      // Ensure init was emitted
       if (!initEmitted) {
-        initEmitted = true
-        const initEvt: NormalizedEvent = {
-          type: 'session_init',
-          sessionId: syntheticSessionId,
-          tools: [],
-          model: options.model || 'codex',
-          mcpServers: [],
-          skills: [],
-          version: 'codex-cli',
-        }
-        this.emit('normalized', requestId, initEvt)
+        this._emitInit(requestId, handle, options)
       }
 
       if (code === 0) {
-        // Emit task_complete
         const completeEvt: NormalizedEvent = {
           type: 'task_complete',
           result: '',
@@ -193,7 +213,7 @@ export class CodexRunManager extends EventEmitter {
           durationMs: Date.now() - handle.startedAt,
           numTurns: 1,
           usage: {},
-          sessionId: syntheticSessionId,
+          sessionId: handle.sessionId || `codex-${requestId.substring(0, 8)}`,
         }
         this.emit('normalized', requestId, completeEvt)
       } else if (code !== null && code !== 0) {
@@ -202,7 +222,7 @@ export class CodexRunManager extends EventEmitter {
           type: 'error',
           message: `Codex exited with code ${code}${stderrSummary ? ': ' + stderrSummary : ''}`,
           isError: true,
-          sessionId: syntheticSessionId,
+          sessionId: handle.sessionId || undefined,
         }
         this.emit('normalized', requestId, errorEvt)
       }
@@ -219,6 +239,98 @@ export class CodexRunManager extends EventEmitter {
 
     this.activeRuns.set(requestId, handle)
     return handle
+  }
+
+  /** Parse a single Codex JSONL event and emit normalized events */
+  private _handleCodexEvent(requestId: string, handle: CodexRunHandle, event: any, initEmitted: boolean): void {
+    const type = event.type
+
+    if (type === 'thread.started') {
+      handle.sessionId = event.thread_id
+      this._emitInit(requestId, handle, { prompt: '', projectPath: '' })
+      return
+    }
+
+    if (type === 'item.started' && event.item?.type === 'command_execution') {
+      handle.toolCallCount++
+      const toolEvt: NormalizedEvent = {
+        type: 'tool_call',
+        toolName: 'Bash',
+        toolId: event.item.id,
+        index: handle.toolCallCount - 1,
+      }
+      this.emit('normalized', requestId, toolEvt)
+
+      // Show the command as a tool input update
+      if (event.item.command) {
+        const updateEvt: NormalizedEvent = {
+          type: 'tool_call_update',
+          toolId: event.item.id,
+          partialInput: JSON.stringify({ command: event.item.command }),
+        }
+        this.emit('normalized', requestId, updateEvt)
+      }
+      return
+    }
+
+    if (type === 'item.completed') {
+      const item = event.item
+      if (!item) return
+
+      if (item.type === 'agent_message' && item.text) {
+        const textEvt: NormalizedEvent = { type: 'text_chunk', text: item.text }
+        this.emit('normalized', requestId, textEvt)
+        return
+      }
+
+      if (item.type === 'command_execution') {
+        // Tool call completed — emit output as text then mark complete
+        if (item.aggregated_output) {
+          const outputEvt: NormalizedEvent = {
+            type: 'tool_call_update',
+            toolId: item.id,
+            partialInput: JSON.stringify({
+              command: item.command || '',
+              output: item.aggregated_output,
+              exit_code: item.exit_code,
+            }),
+          }
+          this.emit('normalized', requestId, outputEvt)
+        }
+        const completeEvt: NormalizedEvent = {
+          type: 'tool_call_complete',
+          index: handle.toolCallCount - 1,
+        }
+        this.emit('normalized', requestId, completeEvt)
+        return
+      }
+    }
+
+    if (type === 'turn.completed' && event.usage) {
+      const usageEvt: NormalizedEvent = {
+        type: 'usage',
+        usage: {
+          input_tokens: event.usage.input_tokens,
+          output_tokens: event.usage.output_tokens,
+          cache_read_input_tokens: event.usage.cached_input_tokens,
+        },
+      }
+      this.emit('normalized', requestId, usageEvt)
+      return
+    }
+  }
+
+  private _emitInit(requestId: string, handle: CodexRunHandle, options: Pick<RunOptions, 'prompt' | 'projectPath'>): void {
+    const initEvt: NormalizedEvent = {
+      type: 'session_init',
+      sessionId: handle.sessionId || `codex-${requestId.substring(0, 8)}`,
+      tools: ['Bash', 'Read', 'Write', 'Edit'],
+      model: handle.model || 'codex',
+      mcpServers: [],
+      skills: [],
+      version: 'codex-cli',
+    }
+    this.emit('normalized', requestId, initEvt)
   }
 
   writeToStdin(requestId: string, message: object): boolean {
@@ -248,7 +360,7 @@ export class CodexRunManager extends EventEmitter {
       stdoutTail: handle?.stdoutTail.slice(-20) || [],
       exitCode,
       elapsedMs: handle ? Date.now() - handle.startedAt : 0,
-      toolCallCount: 0,
+      toolCallCount: handle?.toolCallCount || 0,
     }
   }
 

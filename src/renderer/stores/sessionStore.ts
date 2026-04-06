@@ -23,9 +23,7 @@ export const PROVIDERS: Record<ProviderId, { label: string; models: ProviderMode
   codex: {
     label: 'Codex',
     models: [
-      { provider: 'codex', modelId: 'o4-mini', label: 'o4-mini' },
-      { provider: 'codex', modelId: 'o3', label: 'o3' },
-      { provider: 'codex', modelId: 'gpt-4.1', label: 'GPT-4.1' },
+      { provider: 'codex', modelId: 'gpt-5.4', label: 'GPT-5.4' },
     ],
   },
 }
