@@ -598,6 +598,27 @@ ipcMain.handle(IPC.TAKE_SCREENSHOT, async (_event, screenshotMode: string = 'reg
   const { join } = require('path')
   const { writeFileSync, readFileSync } = require('fs')
 
+  // Check Screen Recording permission on macOS before hiding the window
+  if (IS_MAC) {
+    const screenStatus = systemPreferences.getMediaAccessStatus('screen')
+    log(`Screenshot: screen recording status = ${screenStatus}`)
+    if (screenStatus !== 'granted') {
+      // Show a dialog explaining the permission is needed
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Screen Recording Permission Required',
+        message: 'Cloak needs Screen Recording permission to take screenshots.',
+        detail: 'Click "Open Settings" to grant permission, then try again.',
+        buttons: ['Open Settings', 'Cancel'],
+        defaultId: 0,
+      })
+      if (response === 0) {
+        shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+      }
+      return null
+    }
+  }
+
   // Hide overlay instantly
   mainWindow.hide()
   await new Promise((r) => setTimeout(r, 150))
@@ -1013,6 +1034,28 @@ function registerAllShortcuts(): Record<string, boolean> {
 
 async function handleScreenshotAsk(): Promise<void> {
   if (!mainWindow) return
+
+  // Check Screen Recording permission on macOS
+  if (IS_MAC) {
+    const screenStatus = systemPreferences.getMediaAccessStatus('screen')
+    if (screenStatus !== 'granted') {
+      showWindow('screenshot-ask permission')
+      dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Screen Recording Permission Required',
+        message: 'Cloak needs Screen Recording permission to take screenshots.',
+        detail: 'Click "Open Settings" to grant permission, then try again.',
+        buttons: ['Open Settings', 'Cancel'],
+        defaultId: 0,
+      }).then(({ response }) => {
+        if (response === 0) {
+          shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+        }
+      })
+      return
+    }
+  }
+
   // Hide overlay, capture full screen, show overlay with screenshot attached
   mainWindow.hide()
   await new Promise((r) => setTimeout(r, 150))
