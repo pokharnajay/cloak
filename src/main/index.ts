@@ -1085,21 +1085,39 @@ ipcMain.handle(IPC.SET_SHORTCUTS, (_event, shortcuts: ShortcutConfig) => {
 async function requestPermissions(): Promise<void> {
   if (!IS_MAC) return
 
+  // ── Accessibility (required for global shortcuts like ⌥+Space) ──
+  try {
+    const trusted = systemPreferences.isTrustedAccessibilityClient(true)
+    log(`Permission preflight: accessibility ${trusted ? 'granted' : 'requested'}`)
+  } catch (err: any) {
+    log(`Permission preflight: accessibility check failed — ${err.message}`)
+  }
+
+  // ── Screen Recording (required for screenshots) ──
+  // Trigger the permission dialog by requesting a small capture.
+  // This is the only reliable way to prompt on macOS 13+.
+  try {
+    const screenStatus = systemPreferences.getMediaAccessStatus('screen')
+    log(`Permission preflight: screen recording status = ${screenStatus}`)
+    if (screenStatus !== 'granted') {
+      // desktopCapturer.getSources triggers the screen recording permission dialog
+      await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } })
+      log('Permission preflight: screen recording permission requested')
+    }
+  } catch (err: any) {
+    log(`Permission preflight: screen recording check failed — ${err.message}`)
+  }
+
   // ── Microphone (for voice input via Whisper) ──
   try {
     const micStatus = systemPreferences.getMediaAccessStatus('microphone')
     if (micStatus === 'not-determined') {
       await systemPreferences.askForMediaAccess('microphone')
     }
+    log(`Permission preflight: microphone status = ${micStatus}`)
   } catch (err: any) {
     log(`Permission preflight: microphone check failed — ${err.message}`)
   }
-
-  // ── Accessibility (for global ⌥+Space shortcut) ──
-  // globalShortcut works without it on modern macOS; Cmd+Shift+K is always the fallback.
-  // Screen Recording: not requested upfront — macOS 15 Sequoia shows an alarming
-  // "bypass private window picker" dialog. Let the OS prompt naturally if/when
-  // the screenshot feature is actually used.
 }
 
 // ─── App Lifecycle ───
