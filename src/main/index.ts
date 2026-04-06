@@ -369,20 +369,7 @@ ipcMain.on(IPC.SET_PERMISSION_MODE, (_event, mode: string) => {
 ipcMain.on(IPC.SET_CONTENT_PROTECTION, (_event, protect: boolean) => {
   contentProtectionEnabled = protect
   mainWindow?.setContentProtection(protect)
-  // Hide/show tray icon based on stealth mode
-  if (tray) {
-    if (protect) {
-      tray.setImage(nativeImage.createEmpty())  // invisible tray icon
-      tray.setToolTip('')
-    } else {
-      const trayIconPath = join(__dirname, '../../resources/trayTemplate.png')
-      const icon = nativeImage.createFromPath(trayIconPath)
-      if (IS_MAC) icon.setTemplateImage(true)
-      tray.setImage(icon)
-      tray.setToolTip('Cloak — Claude Code UI')
-    }
-  }
-  log(`Content protection ${protect ? 'ON' : 'OFF'} — tray ${protect ? 'hidden' : 'visible'}`)
+  log(`Content protection ${protect ? 'ON' : 'OFF'}`)
 })
 
 ipcMain.handle(IPC.RESPOND_PERMISSION, (_event, { tabId, questionId, optionId }: { tabId: string; questionId: string; optionId: string }) => {
@@ -1241,18 +1228,7 @@ app.whenReady().then(async () => {
 
   registerAllShortcuts()
 
-  const trayIconPath = join(__dirname, '../../resources/trayTemplate.png')
-  const trayIcon = nativeImage.createFromPath(trayIconPath)
-  if (IS_MAC) trayIcon.setTemplateImage(true)
-  tray = new Tray(trayIcon)
-  tray.setToolTip('Cloak — Claude Code UI')
-  tray.on('click', () => toggleWindow('tray click'))
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Show Cloak', click: () => showWindow('tray menu') },
-      { label: 'Quit', click: () => { app.quit() } },
-    ])
-  )
+  // No tray icon — fully invisible. Use keyboard shortcut to toggle.
 
   // Auto-start on login
   if (app.isPackaged) {
