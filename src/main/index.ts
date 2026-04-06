@@ -8,7 +8,7 @@ import { ensureSkills, type SkillStatus } from './skills/installer'
 import { fetchCatalog, listInstalled, installPlugin, uninstallPlugin } from './marketplace/catalog'
 import { log as _log, LOG_FILE, flushLogs } from './logger'
 import { getCliEnv } from './cli-env'
-import { IS_MAC, IS_WIN, encodeCwdForSession, openInTerminal, captureScreenshot, getPrimaryShortcut, findWhisper } from './platform'
+import { IS_MAC, IS_WIN, encodeCwdForSession, openInTerminal, captureScreenshot, getPrimaryShortcut, findWhisper, checkProviders, installCodexCli } from './platform'
 import { IPC } from '../shared/types'
 import type { RunOptions, NormalizedEvent, EnrichedError } from '../shared/types'
 
@@ -364,6 +364,35 @@ ipcMain.on(IPC.SET_PERMISSION_MODE, (_event, mode: string) => {
   }
   log(`IPC SET_PERMISSION_MODE: ${mode}`)
   controlPlane.setPermissionMode(mode)
+})
+
+// ─── Provider management ───
+
+ipcMain.handle(IPC.CHECK_PROVIDERS, () => {
+  log('IPC CHECK_PROVIDERS')
+  return checkProviders()
+})
+
+ipcMain.handle(IPC.INSTALL_CODEX, async () => {
+  log('IPC INSTALL_CODEX: starting installation')
+  // Send toast: installing
+  mainWindow?.webContents.send(IPC.PROVIDER_TOAST, {
+    type: 'info',
+    message: 'Installing Codex CLI (npm install -g @openai/codex)...',
+  })
+  const result = await installCodexCli((msg) => log(`[codex-install] ${msg}`))
+  if (result.ok) {
+    mainWindow?.webContents.send(IPC.PROVIDER_TOAST, {
+      type: 'success',
+      message: 'Codex CLI installed successfully! You can now use Codex models.',
+    })
+  } else {
+    mainWindow?.webContents.send(IPC.PROVIDER_TOAST, {
+      type: 'error',
+      message: `Failed to install Codex CLI: ${result.error || 'Unknown error'}`,
+    })
+  }
+  return result
 })
 
 ipcMain.on(IPC.SET_CONTENT_PROTECTION, (_event, protect: boolean) => {

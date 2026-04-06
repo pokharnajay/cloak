@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, CaretDown, Check, FolderOpen, Plus, X, ShieldCheck } from '@phosphor-icons/react'
-import { useSessionStore, AVAILABLE_MODELS } from '../stores/sessionStore'
+import { Terminal, CaretDown, Check, FolderOpen, Plus, X, ShieldCheck, DownloadSimple } from '@phosphor-icons/react'
+import { useSessionStore, PROVIDERS, AVAILABLE_MODELS, findProviderModel } from '../stores/sessionStore'
+import type { ProviderId } from '../../shared/types'
 import { usePopoverLayer } from './PopoverLayer'
 import { useColors } from '../theme'
 
@@ -10,7 +11,9 @@ import { useColors } from '../theme'
 
 function ModelPicker() {
   const preferredModel = useSessionStore((s) => s.preferredModel)
+  const preferredProvider = useSessionStore((s) => s.preferredProvider)
   const setPreferredModel = useSessionStore((s) => s.setPreferredModel)
+  const installCodex = useSessionStore((s) => s.installCodex)
   const tab = useSessionStore(
     (s) => s.tabs.find((t) => t.id === s.activeTabId),
     (a, b) => a === b || (!!a && !!b && a.status === b.status && a.sessionModel === b.sessionModel),
@@ -54,15 +57,26 @@ function ModelPicker() {
 
   const activeLabel = (() => {
     if (preferredModel) {
-      const m = AVAILABLE_MODELS.find((m) => m.id === preferredModel)
-      return m?.label || preferredModel
+      const pm = findProviderModel(preferredModel)
+      if (pm) {
+        return pm.provider === 'claude' ? pm.label : `${PROVIDERS[pm.provider].label} / ${pm.label}`
+      }
+      return preferredModel
     }
     if (tab?.sessionModel) {
       const m = AVAILABLE_MODELS.find((m) => m.id === tab.sessionModel)
       return m?.label || tab.sessionModel
     }
-    return AVAILABLE_MODELS[0].label
+    return PROVIDERS.claude.models[0].label
   })()
+
+  const handleInstallCodex = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    installCodex()
+    setOpen(false)
+  }
+
+  const providerEntries = Object.entries(PROVIDERS) as Array<[ProviderId, typeof PROVIDERS[ProviderId]]>
 
   return (
     <>
@@ -93,7 +107,7 @@ function ModelPicker() {
             position: 'fixed',
             bottom: pos.bottom,
             left: pos.left,
-            width: 192,
+            width: 210,
             pointerEvents: 'auto',
             background: colors.popoverBg,
             backdropFilter: 'blur(20px)',
@@ -103,23 +117,50 @@ function ModelPicker() {
           }}
         >
           <div className="py-1">
-            {AVAILABLE_MODELS.map((m) => {
-              const isSelected = preferredModel === m.id || (!preferredModel && m.id === AVAILABLE_MODELS[0].id)
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => { setPreferredModel(m.id); setOpen(false) }}
-                  className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
-                  style={{
-                    color: isSelected ? colors.textPrimary : colors.textSecondary,
-                    fontWeight: isSelected ? 600 : 400,
-                  }}
+            {providerEntries.map(([providerId, provider], providerIdx) => (
+              <React.Fragment key={providerId}>
+                {providerIdx > 0 && (
+                  <div className="mx-2 my-1" style={{ height: 1, background: colors.popoverBorder }} />
+                )}
+                {/* Provider section header */}
+                <div
+                  className="px-3 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider flex items-center justify-between"
+                  style={{ color: colors.textTertiary }}
                 >
-                  {m.label}
-                  {isSelected && <Check size={12} style={{ color: colors.accent }} />}
-                </button>
-              )
-            })}
+                  <span>{provider.label}{providerId === 'codex' ? ' (OpenAI)' : ''}</span>
+                  {providerId === 'codex' && (
+                    <button
+                      onClick={handleInstallCodex}
+                      className="flex items-center gap-0.5 text-[9px] transition-opacity hover:opacity-80"
+                      style={{ color: colors.accent }}
+                      title="Install Codex CLI"
+                    >
+                      <DownloadSimple size={9} />
+                      Install
+                    </button>
+                  )}
+                </div>
+                {/* Model options */}
+                {provider.models.map((m) => {
+                  const isSelected = preferredModel === m.modelId ||
+                    (!preferredModel && providerId === 'claude' && m.modelId === provider.models[0].modelId)
+                  return (
+                    <button
+                      key={m.modelId}
+                      onClick={() => { setPreferredModel(providerId, m.modelId); setOpen(false) }}
+                      className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
+                      style={{
+                        color: isSelected ? colors.textPrimary : colors.textSecondary,
+                        fontWeight: isSelected ? 600 : 400,
+                      }}
+                    >
+                      {m.label}
+                      {isSelected && <Check size={12} style={{ color: colors.accent }} />}
+                    </button>
+                  )
+                })}
+              </React.Fragment>
+            ))}
           </div>
         </motion.div>,
         popoverLayer,

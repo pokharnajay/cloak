@@ -77,6 +77,16 @@ export default function App() {
     return unsub
   }, [])
 
+  // Provider toast notifications (Codex install progress, missing API key, etc.)
+  const [providerToast, setProviderToast] = useState<{ type: 'info' | 'success' | 'error'; message: string } | null>(null)
+  useEffect(() => {
+    const unsub = window.clui.onProviderToast((toast) => {
+      setProviderToast(toast)
+      setTimeout(() => setProviderToast(null), 5000)
+    })
+    return unsub
+  }, [])
+
   // OS-level click-through (RAF-throttled to avoid per-pixel IPC)
   useEffect(() => {
     if (!window.clui?.setIgnoreMouseEvents) return
@@ -218,6 +228,44 @@ export default function App() {
               }}
             >
               {stealthMsg}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Provider toast (Codex install, missing API key, etc.) */}
+        <AnimatePresence>
+          {providerToast && (
+            <motion.div
+              data-clui-ui
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-[11px]"
+              style={{
+                background: providerToast.type === 'error'
+                  ? 'rgba(225, 45, 57, 0.15)'
+                  : providerToast.type === 'success'
+                    ? 'rgba(16, 185, 129, 0.15)'
+                    : 'rgba(59, 130, 246, 0.15)',
+                border: `1px solid ${
+                  providerToast.type === 'error'
+                    ? 'rgba(225, 45, 57, 0.3)'
+                    : providerToast.type === 'success'
+                      ? 'rgba(16, 185, 129, 0.3)'
+                      : 'rgba(59, 130, 246, 0.3)'
+                }`,
+                color: providerToast.type === 'error'
+                  ? '#E12D39'
+                  : providerToast.type === 'success'
+                    ? '#10B981'
+                    : '#3B82F6',
+                backdropFilter: 'blur(12px)',
+                maxWidth: 400,
+                textAlign: 'center',
+                pointerEvents: 'auto',
+              }}
+            >
+              {providerToast.message}
             </motion.div>
           )}
         </AnimatePresence>

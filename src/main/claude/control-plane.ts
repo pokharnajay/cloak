@@ -1,10 +1,12 @@
 import { EventEmitter } from 'events'
 import { RunManager } from './run-manager'
 import { PtyRunManager } from './pty-run-manager'
+import { CodexRunManager } from '../providers/codex-run-manager'
 import { PermissionServer, maskSensitiveFields } from '../hooks/permission-server'
 import type { HookToolRequest, PermissionOption } from '../hooks/permission-server'
 import { log as _log } from '../logger'
 import type {
+  ProviderId,
   TabStatus,
   TabRegistryEntry,
   HealthReport,
@@ -65,6 +67,10 @@ export class ControlPlane extends EventEmitter {
   private interactivePty: boolean
   /** Tracks which runs are using PTY transport (by requestId) */
   private ptyRuns = new Set<string>()
+  /** Codex CLI run manager for OpenAI Codex provider */
+  private codexRunManager: CodexRunManager
+  /** Tracks which provider owns each run (by requestId) */
+  private providerForRun = new Map<string, ProviderId>()
   /** Tracks requestIds that are warmup init requests (invisible to renderer) */
   private initRequestIds = new Set<string>()
   /** Permission hook server for PreToolUse HTTP hooks */
@@ -81,6 +87,7 @@ export class ControlPlane extends EventEmitter {
     this.interactivePty = interactivePty
     this.runManager = new RunManager()
     this.ptyRunManager = new PtyRunManager()
+    this.codexRunManager = new CodexRunManager()
     this.permissionServer = new PermissionServer()
 
     // Start the permission hook server. _dispatch awaits hookServerReady
@@ -130,6 +137,9 @@ export class ControlPlane extends EventEmitter {
     })
 
     log(`Interactive PTY transport: ${interactivePty ? 'ENABLED' : 'disabled'}`)
+
+    // ─── Wire CodexRunManager events → ControlPlane routing ───
+    this._wireCodexEvents()
 
     // ─── Wire PtyRunManager events → ControlPlane routing ───
     this._wirePtyEvents()
@@ -427,6 +437,98 @@ export class ControlPlane extends EventEmitter {
     })
   }
 
+  /**
+   * Wire CodexRunManager events using the same routing logic as RunManager.
+   */
+  private _wireCodexEvents(): void {
+    this.codexRunManager.on('normalized', (requestId: string, event: NormalizedEvent) => {
+      const tabId = this._findTabByRequest(requestId)
+      if (!tabId) return
+
+      const tab = this.tabs.get(tabId)
+      if (!tab) return
+
+      tab.lastActivityAt = Date.now()
+
+      // Handle session init (synthetic from Codex)
+      if (event.type === 'session_init') {
+        tab.claudeSessionId = event.sessionId
+
+        if (tab.status === 'connecting') {
+          this._setTabStatus(tabId, 'running')
+        }
+      }
+
+      this.emit('event', tabId, event)
+    })
+
+    this.codexRunManager.on('exit', (requestId: string, code: number | null, signal: string | null, sessionId: string | null) => {
+      const tabId = this._findTabByRequest(requestId)
+      const inflight = this.inflightRequests.get(requestId)
+
+      this.providerForRun.delete(requestId)
+
+      if (!tabId || !this.tabs.get(tabId)) {
+        if (inflight) {
+          inflight.resolve()
+          this.inflightRequests.delete(requestId)
+        }
+        return
+      }
+
+      const tab = this.tabs.get(tabId)!
+      tab.activeRequestId = null
+      tab.runPid = null
+
+      if (code === 0) {
+        this._setTabStatus(tabId, 'completed')
+      } else if (signal === 'SIGINT' || signal === 'SIGKILL') {
+        this._setTabStatus(tabId, 'failed')
+      } else {
+        const enriched = this.codexRunManager.getEnrichedError(requestId, code)
+        this.emit('error', tabId, enriched)
+        this._setTabStatus(tabId, code === null ? 'dead' : 'failed')
+      }
+
+      if (inflight) {
+        inflight.resolve()
+        this.inflightRequests.delete(requestId)
+      }
+
+      this._processQueue(tabId)
+    })
+
+    this.codexRunManager.on('error', (requestId: string, err: Error) => {
+      const tabId = this._findTabByRequest(requestId)
+      const inflight = this.inflightRequests.get(requestId)
+
+      this.providerForRun.delete(requestId)
+
+      if (!tabId || !this.tabs.get(tabId)) {
+        if (inflight) {
+          inflight.reject(err)
+          this.inflightRequests.delete(requestId)
+        }
+        return
+      }
+
+      const tab = this.tabs.get(tabId)!
+      tab.activeRequestId = null
+      tab.runPid = null
+
+      this._setTabStatus(tabId, 'dead')
+
+      const enriched = this.codexRunManager.getEnrichedError(requestId, null)
+      enriched.message = err.message
+      this.emit('error', tabId, enriched)
+
+      if (inflight) {
+        inflight.reject(err)
+        this.inflightRequests.delete(requestId)
+      }
+    })
+  }
+
   // ─── Tab Lifecycle ───
 
   createTab(): string {
@@ -588,21 +690,26 @@ export class ControlPlane extends EventEmitter {
     const tab = this.tabs.get(tabId)
     if (!tab) throw new Error(`Tab ${tabId} disappeared`)
 
-    // Wait for the permission hook server to be ready (or failed).
-    // This prevents early prompts from silently falling back to --allowedTools.
-    await this.hookServerReady
+    const provider: ProviderId = options.provider || 'claude'
 
-    // Use stored session ID for resume if available and not overridden
-    if (tab.claudeSessionId && !options.sessionId) {
-      options = { ...options, sessionId: tab.claudeSessionId }
-    }
+    // Codex doesn't need the permission hook server or session resume
+    if (provider !== 'codex') {
+      // Wait for the permission hook server to be ready (or failed).
+      // This prevents early prompts from silently falling back to --allowedTools.
+      await this.hookServerReady
 
-    // Per-run token lifecycle: register run, generate per-run settings file
-    if (this.permissionServer.getPort()) {
-      const runToken = this.permissionServer.registerRun(tabId, requestId, options.sessionId || null)
-      this.runTokens.set(requestId, runToken)
-      const hookSettingsPath = this.permissionServer.generateSettingsFile(runToken)
-      options = { ...options, hookSettingsPath }
+      // Use stored session ID for resume if available and not overridden
+      if (tab.claudeSessionId && !options.sessionId) {
+        options = { ...options, sessionId: tab.claudeSessionId }
+      }
+
+      // Per-run token lifecycle: register run, generate per-run settings file
+      if (this.permissionServer.getPort()) {
+        const runToken = this.permissionServer.registerRun(tabId, requestId, options.sessionId || null)
+        this.runTokens.set(requestId, runToken)
+        const hookSettingsPath = this.permissionServer.generateSettingsFile(runToken)
+        options = { ...options, hookSettingsPath }
+      }
     }
 
     tab.activeRequestId = requestId
@@ -614,18 +721,34 @@ export class ControlPlane extends EventEmitter {
     this._setTabStatus(tabId, newStatus)
 
     // ─── Pick transport ───
+
+    // If provider changed on this tab, clear session (can't resume cross-provider)
+    if (tab.provider && tab.provider !== provider) {
+      log(`Provider switched from ${tab.provider} to ${provider} on tab ${tabId} — clearing session`)
+      tab.claudeSessionId = null
+      options = { ...options, sessionId: undefined }
+    }
+    tab.provider = provider
+
     // Stream-json is the stable transport for all regular messages.
     // PTY is reserved for future interactive permission handling only.
     const usePty = false
 
     let pid: number | null = null
     try {
-      if (usePty) {
+      if (provider === 'codex') {
+        log(`Dispatching via Codex transport: ${requestId}`)
+        this.providerForRun.set(requestId, 'codex')
+        const handle = this.codexRunManager.startRun(requestId, options)
+        pid = handle.pid
+      } else if (usePty) {
         log(`Dispatching via PTY transport: ${requestId}`)
+        this.providerForRun.set(requestId, 'claude')
         const handle = this.ptyRunManager.startRun(requestId, options)
         this.ptyRuns.add(requestId)
         pid = handle.pid
       } else {
+        this.providerForRun.set(requestId, 'claude')
         const handle = this.runManager.startRun(requestId, options)
         pid = handle.pid
       }
@@ -665,6 +788,9 @@ export class ControlPlane extends EventEmitter {
     }
 
     // Cancel active run — route to correct transport
+    if (this.providerForRun.get(requestId) === 'codex') {
+      return this.codexRunManager.cancel(requestId)
+    }
     if (this.ptyRuns.has(requestId)) {
       return this.ptyRunManager.cancel(requestId)
     }
@@ -712,6 +838,11 @@ export class ControlPlane extends EventEmitter {
     const tab = this.tabs.get(tabId)
     if (!tab?.activeRequestId) return false
 
+    // Codex doesn't support permissions — no-op
+    if (this.providerForRun.get(tab.activeRequestId) === 'codex') {
+      return false
+    }
+
     // Route to correct transport
     if (this.ptyRuns.has(tab.activeRequestId)) {
       return this.ptyRunManager.respondToPermission(tab.activeRequestId, questionId, optionId)
@@ -737,6 +868,7 @@ export class ControlPlane extends EventEmitter {
       if (tab.activeRequestId) {
         alive = this.runManager.isRunning(tab.activeRequestId)
           || this.ptyRunManager.isRunning(tab.activeRequestId)
+          || this.codexRunManager.isRunning(tab.activeRequestId)
       }
 
       tabEntries.push({
@@ -759,6 +891,9 @@ export class ControlPlane extends EventEmitter {
   }
 
   getEnrichedError(requestId: string, exitCode: number | null): EnrichedError {
+    if (this.providerForRun.get(requestId) === 'codex') {
+      return this.codexRunManager.getEnrichedError(requestId, exitCode)
+    }
     if (this.ptyRuns.has(requestId)) {
       return this.ptyRunManager.getEnrichedError(requestId, exitCode)
     }

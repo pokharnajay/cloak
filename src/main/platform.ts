@@ -158,6 +158,113 @@ export function findClaudeBinary(): string {
   return 'claude'
 }
 
+// ─── Codex Binary Discovery ───
+
+let cachedCodexBinary: string | null = null
+
+/**
+ * Find the `codex` CLI binary (OpenAI Codex CLI).
+ * Returns the path if found, or null if not installed.
+ * On macOS: Homebrew, npm-global, login-shell fallback.
+ * On Windows: npm global (.cmd), `where` fallback.
+ */
+export function findCodexBinary(): string | null {
+  if (cachedCodexBinary !== null) return cachedCodexBinary || null
+
+  if (IS_MAC) {
+    const candidates = [
+      '/usr/local/bin/codex',
+      '/opt/homebrew/bin/codex',
+      join(homedir(), '.npm-global/bin/codex'),
+    ]
+    for (const c of candidates) {
+      try {
+        execSync(`test -x "${c}"`, { stdio: 'ignore' })
+        cachedCodexBinary = c
+        return c
+      } catch {}
+    }
+    // Login-shell fallback
+    try {
+      const found = execSync('/bin/zsh -ilc "whence -p codex"', {
+        encoding: 'utf-8', env: getCliEnv(), timeout: 5000,
+      }).trim()
+      if (found) { cachedCodexBinary = found; return found }
+    } catch {}
+    try {
+      const found = execSync('/bin/bash -lc "which codex"', {
+        encoding: 'utf-8', env: getCliEnv(), timeout: 5000,
+      }).trim()
+      if (found) { cachedCodexBinary = found; return found }
+    } catch {}
+  } else if (IS_WIN) {
+    const appData = process.env.APPDATA || join(homedir(), 'AppData', 'Roaming')
+    const candidates = [
+      join(appData, 'npm', 'codex.cmd'),
+      join(appData, 'npm', 'codex'),
+      join(homedir(), '.npm-global', 'codex.cmd'),
+      join(homedir(), '.npm-global', 'codex'),
+    ]
+    for (const c of candidates) {
+      if (existsSync(c)) {
+        cachedCodexBinary = c
+        return c
+      }
+    }
+    // `where` fallback
+    try {
+      const result = execSync('where codex', {
+        encoding: 'utf-8', timeout: 5000, env: getCliEnv(),
+      }).trim()
+      const first = result.split(/\r?\n/)[0].trim()
+      if (first) { cachedCodexBinary = first; return first }
+    } catch {}
+  }
+
+  // Not found
+  cachedCodexBinary = ''
+  return null
+}
+
+/**
+ * Install the OpenAI Codex CLI globally via npm.
+ * Works on both macOS and Windows.
+ */
+export async function installCodexCli(
+  log: (msg: string) => void,
+): Promise<{ ok: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    const npmBin = IS_WIN ? 'npm.cmd' : 'npm'
+    log(`Installing Codex CLI via: ${npmBin} install -g @openai/codex`)
+    execFile(npmBin, ['install', '-g', '@openai/codex'], {
+      env: getCliEnv(),
+      timeout: 120000,
+    }, (err, _stdout, stderr) => {
+      // Clear cache so next findCodexBinary() re-discovers
+      cachedCodexBinary = null
+      if (err) {
+        log(`Codex CLI install failed: ${err.message}`)
+        resolve({ ok: false, error: stderr?.trim() || err.message })
+      } else {
+        log('Codex CLI installed successfully')
+        resolve({ ok: true })
+      }
+    })
+  })
+}
+
+/**
+ * Check which AI providers have their CLI binary available.
+ */
+export function checkProviders(): { claude: { available: boolean; binary: string | null }; codex: { available: boolean; binary: string | null } } {
+  const claudeBin = findClaudeBinary()
+  const codexBin = findCodexBinary()
+  return {
+    claude: { available: !!claudeBin, binary: claudeBin },
+    codex: { available: !!codexBin, binary: codexBin },
+  }
+}
+
 /**
  * Prepend a binary's directory to PATH using the correct delimiter.
  */
