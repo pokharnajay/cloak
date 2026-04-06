@@ -35,7 +35,7 @@ const controlPlane = new ControlPlane(INTERACTIVE_PTY)
 // Keep native width fixed to avoid renderer animation vs setBounds race.
 // The UI itself still launches in compact mode; extra width is transparent/click-through.
 const BAR_WIDTH = 1040
-const PILL_HEIGHT = 720  // Fixed native window height — extra room for expanded UI + shadow buffers
+const PILL_HEIGHT = 850  // Fixed native window height — extra room for expanded UI + shadow buffers
 const PILL_BOTTOM_MARGIN = 60
 
 // ─── Broadcast to renderer ───
@@ -162,6 +162,24 @@ function createWindow(): void {
     //   mainWindow?.webContents.openDevTools({ mode: 'detach' })
     // }
   })
+
+  // Re-assert alwaysOnTop aggressively — ensures overlay stays above all other windows
+  const reassertOnTop = () => {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+      if (IS_MAC) {
+        mainWindow.setAlwaysOnTop(true, 'screen-saver')
+      } else {
+        mainWindow.setAlwaysOnTop(true, 'floating')
+      }
+    }
+  }
+
+  // Re-assert on blur (when user clicks another app)
+  mainWindow.on('blur', reassertOnTop)
+  // Re-assert when any other browser window gets focus
+  app.on('browser-window-blur', reassertOnTop)
+  // Periodic re-assertion every 2 seconds as safety net
+  setInterval(reassertOnTop, 2000)
 
   let forceQuit = false
   app.on('before-quit', () => { forceQuit = true })

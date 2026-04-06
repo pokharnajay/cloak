@@ -85,42 +85,73 @@ export class CodexRunManager extends EventEmitter {
       return handle
     }
 
-    // Build args: codex exec --json [flags] "prompt"
-    const args: string[] = ['exec', '--json']
+    // Determine if this is a resume (follow-up in existing conversation) or new exec
+    const isResume = !!options.sessionId && options.sessionId.startsWith('codex-') === false
 
-    // Permission/sandbox modes
-    if (options.permissionMode === 'auto') {
-      args.push('--full-auto')
-    } else if (options.permissionMode === 'plan') {
-      args.push('--sandbox', 'read-only')
+    const args: string[] = []
+
+    if (isResume) {
+      // Resume existing conversation: codex exec resume --json <thread_id> "prompt"
+      args.push('exec', 'resume', '--json', '--skip-git-repo-check')
+
+      // exec resume only supports --full-auto and --dangerously-bypass (no --sandbox)
+      if (options.permissionMode === 'auto') {
+        args.push('--full-auto')
+      }
+
+      // Only pass --model if explicitly set
+      if (options.model && options.model !== 'codex') {
+        args.push('--model', options.model)
+      }
+
+      // Image attachments
+      if (options.imagePaths && options.imagePaths.length > 0) {
+        for (const imgPath of options.imagePaths) {
+          args.push('-i', imgPath)
+        }
+      }
+
+      // Session ID then prompt
+      args.push(options.sessionId!)
+      args.push(options.prompt)
     } else {
-      // 'ask' mode — sandboxed with approval on request
-      args.push('--sandbox', 'workspace-write', '-a', 'on-request')
-    }
+      // New conversation: codex exec --json [flags] "prompt"
+      args.push('exec', '--json', '--skip-git-repo-check')
 
-    if (options.model) {
-      args.push('--model', options.model)
-    }
-
-    // Working directory
-    args.push('-C', cwd)
-
-    // Additional directories
-    if (options.addDirs && options.addDirs.length > 0) {
-      for (const dir of options.addDirs) {
-        args.push('--add-dir', dir)
+      // Permission/sandbox modes
+      if (options.permissionMode === 'auto') {
+        args.push('--full-auto')
+      } else if (options.permissionMode === 'plan') {
+        args.push('--sandbox', 'read-only')
+      } else {
+        args.push('--sandbox', 'workspace-write')
       }
-    }
 
-    // Image attachments via file paths (-i flag)
-    if (options.imagePaths && options.imagePaths.length > 0) {
-      for (const imgPath of options.imagePaths) {
-        args.push('-i', imgPath)
+      // Only pass --model if explicitly set
+      if (options.model && options.model !== 'codex') {
+        args.push('--model', options.model)
       }
-    }
 
-    // Prompt as last positional argument
-    args.push(options.prompt)
+      // Working directory
+      args.push('-C', cwd)
+
+      // Additional directories
+      if (options.addDirs && options.addDirs.length > 0) {
+        for (const dir of options.addDirs) {
+          args.push('--add-dir', dir)
+        }
+      }
+
+      // Image attachments via file paths (-i flag)
+      if (options.imagePaths && options.imagePaths.length > 0) {
+        for (const imgPath of options.imagePaths) {
+          args.push('-i', imgPath)
+        }
+      }
+
+      // Prompt as last positional argument
+      args.push(options.prompt)
+    }
 
     if (DEBUG) {
       log(`Starting run ${requestId}: ${codexBinary} ${args.join(' ')}`)
@@ -135,6 +166,10 @@ export class CodexRunManager extends EventEmitter {
     })
 
     log(`Spawned PID: ${child.pid}`)
+
+    // Close stdin immediately — prompt is passed as positional arg, not via stdin.
+    // Without this, Codex hangs with "Reading additional input from stdin..."
+    child.stdin?.end()
 
     handle.process = child
     handle.pid = child.pid || null

@@ -378,7 +378,7 @@ export default function App() {
 
           {/* ─── Input row — circles float outside left ─── */}
           <motion.div key="input-row" data-clui-ui className="relative"
-            style={{ minHeight: 46, zIndex: 15, marginBottom: 10 }}
+            style={{ minHeight: 46, zIndex: 25, marginBottom: 10 }}
             animate={{ opacity: 1, height: 'auto' }}
             transition={TRANSITION}>
 

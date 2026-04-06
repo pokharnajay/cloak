@@ -692,7 +692,14 @@ export class ControlPlane extends EventEmitter {
 
     const provider: ProviderId = options.provider || 'claude'
 
-    // Codex doesn't need the permission hook server or session resume
+    // Codex: use stored thread_id for conversation resume
+    if (provider === 'codex') {
+      if (tab.claudeSessionId && !options.sessionId) {
+        options = { ...options, sessionId: tab.claudeSessionId }
+      }
+    }
+
+    // Claude: needs permission hook server and session resume
     if (provider !== 'codex') {
       // Wait for the permission hook server to be ready (or failed).
       // This prevents early prompts from silently falling back to --allowedTools.
