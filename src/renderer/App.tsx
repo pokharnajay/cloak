@@ -67,6 +67,16 @@ export default function App() {
     return unsub
   }, [addAttachments])
 
+  // Stealth mode blocked action — show in-app message instead of OS dialog
+  const [stealthMsg, setStealthMsg] = useState<string | null>(null)
+  useEffect(() => {
+    const unsub = window.clui.onStealthBlocked((msg) => {
+      setStealthMsg(msg)
+      setTimeout(() => setStealthMsg(null), 4000)
+    })
+    return unsub
+  }, [])
+
   // OS-level click-through (RAF-throttled to avoid per-pixel IPC)
   useEffect(() => {
     if (!window.clui?.setIgnoreMouseEvents) return
@@ -185,6 +195,30 @@ export default function App() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {/* Stealth mode blocked toast */}
+        <AnimatePresence>
+          {stealthMsg && (
+            <motion.div
+              data-clui-ui
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-[11px]"
+              style={{
+                background: 'rgba(225, 45, 57, 0.15)',
+                border: '1px solid rgba(225, 45, 57, 0.3)',
+                color: '#E12D39',
+                backdropFilter: 'blur(12px)',
+                maxWidth: 360,
+                textAlign: 'center',
+                pointerEvents: 'auto',
+              }}
+            >
+              {stealthMsg}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Drop zone overlay */}
         <AnimatePresence>
           {isDragOver && (

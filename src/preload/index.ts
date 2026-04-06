@@ -56,6 +56,7 @@ export interface CluiAPI {
   onError(callback: (tabId: string, error: EnrichedError) => void): () => void
   onSkillStatus(callback: (status: { name: string; state: string; error?: string; reason?: string }) => void): () => void
   onWindowShown(callback: () => void): () => void
+  onStealthBlocked(callback: (message: string) => void): () => void
 }
 
 const api: CluiAPI = {
@@ -155,6 +156,11 @@ const api: CluiAPI = {
     const handler = () => callback()
     ipcRenderer.on(IPC.WINDOW_SHOWN, handler)
     return () => ipcRenderer.removeListener(IPC.WINDOW_SHOWN, handler)
+  },
+  onStealthBlocked: (callback) => {
+    const handler = (_e: Electron.IpcRendererEvent, msg: string) => callback(msg)
+    ipcRenderer.on('clui:stealth-blocked', handler)
+    return () => ipcRenderer.removeListener('clui:stealth-blocked', handler)
   },
 }
 

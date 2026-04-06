@@ -369,6 +369,20 @@ ipcMain.on(IPC.SET_PERMISSION_MODE, (_event, mode: string) => {
 ipcMain.on(IPC.SET_CONTENT_PROTECTION, (_event, protect: boolean) => {
   contentProtectionEnabled = protect
   mainWindow?.setContentProtection(protect)
+  // Hide/show tray icon based on stealth mode
+  if (tray) {
+    if (protect) {
+      tray.setImage(nativeImage.createEmpty())  // invisible tray icon
+      tray.setToolTip('')
+    } else {
+      const trayIconPath = join(__dirname, '../../resources/trayTemplate.png')
+      const icon = nativeImage.createFromPath(trayIconPath)
+      if (IS_MAC) icon.setTemplateImage(true)
+      tray.setImage(icon)
+      tray.setToolTip('Cloak — Claude Code UI')
+    }
+  }
+  log(`Content protection ${protect ? 'ON' : 'OFF'} — tray ${protect ? 'hidden' : 'visible'}`)
 })
 
 ipcMain.handle(IPC.RESPOND_PERMISSION, (_event, { tabId, questionId, optionId }: { tabId: string; questionId: string; optionId: string }) => {
@@ -516,6 +530,11 @@ ipcMain.handle(IPC.LOAD_SESSION, async (_e, arg: { sessionId: string; projectPat
 
 ipcMain.handle(IPC.SELECT_DIRECTORY, async () => {
   if (!mainWindow) return null
+  // Block OS dialogs in stealth mode — they're visible in screen sharing
+  if (contentProtectionEnabled) {
+    broadcast('clui:stealth-blocked', 'File dialogs are hidden in stealth mode. Turn off "Visible in screen sharing" first.')
+    return null
+  }
   // macOS: activate app so unparented dialog appears on top (not behind other apps).
   // Unparented avoids modal dimming on the transparent overlay.
   // Activation is fine here — user is actively interacting with CLUI.
@@ -540,6 +559,11 @@ ipcMain.handle(IPC.OPEN_EXTERNAL, async (_event, url: string) => {
 
 ipcMain.handle(IPC.ATTACH_FILES, async () => {
   if (!mainWindow) return null
+  // Block OS dialogs in stealth mode
+  if (contentProtectionEnabled) {
+    broadcast('clui:stealth-blocked', 'File dialogs are hidden in stealth mode. Turn off "Visible in screen sharing" first.')
+    return null
+  }
   // macOS: activate app so unparented dialog appears on top
   if (IS_MAC) app.focus()
   const options = {
@@ -603,7 +627,11 @@ ipcMain.handle(IPC.TAKE_SCREENSHOT, async (_event, screenshotMode: string = 'reg
     const screenStatus = systemPreferences.getMediaAccessStatus('screen')
     log(`Screenshot: screen recording status = ${screenStatus}`)
     if (screenStatus !== 'granted') {
-      // Show a dialog explaining the permission is needed
+      // In stealth mode, don't show OS dialogs — just notify via renderer
+      if (contentProtectionEnabled) {
+        broadcast('clui:stealth-blocked', 'Screenshots need Screen Recording permission. Disable stealth mode first, then grant permission.')
+        return null
+      }
       const { response } = await dialog.showMessageBox(mainWindow, {
         type: 'warning',
         title: 'Screen Recording Permission Required',
