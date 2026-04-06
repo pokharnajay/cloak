@@ -237,8 +237,10 @@ export interface RunOptions {
   hookSettingsPath?: string
   /** Extra directories to add via --add-dir (session-preserving) */
   addDirs?: string[]
-  /** Base64-encoded images to include as content blocks */
+  /** Base64-encoded images to include as content blocks (Claude) */
   images?: Array<{ data: string; mediaType: string }>
+  /** File paths of images to attach via -i flag (Codex) */
+  imagePaths?: string[]
 }
 
 // ─── Control Plane Types ───

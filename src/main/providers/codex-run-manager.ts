@@ -112,12 +112,10 @@ export class CodexRunManager extends EventEmitter {
       }
     }
 
-    // Image attachments
-    if (options.images && options.images.length > 0) {
-      for (const img of options.images) {
-        // Images come as base64 data — write to temp file and pass path
-        // But we also have file-path attachments — check if there's a path
-        // The RunOptions.images are base64, but attachments with paths are handled separately
+    // Image attachments via file paths (-i flag)
+    if (options.imagePaths && options.imagePaths.length > 0) {
+      for (const imgPath of options.imagePaths) {
+        args.push('-i', imgPath)
       }
     }
 

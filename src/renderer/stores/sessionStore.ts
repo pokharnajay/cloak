@@ -659,14 +659,22 @@ export const useSessionStore = create<State>((set, get) => ({
 
     // Send to backend — ControlPlane will queue if a run is active
     const { preferredModel, preferredProvider } = get()
+    const isCodexProvider = preferredProvider === 'codex'
+
+    // For Codex, pass image file paths instead of base64 data
+    const imgPaths = isCodexProvider
+      ? tab.attachments.filter((a) => a.type === 'image' && a.path).map((a) => a.path)
+      : undefined
+
     window.clui.prompt(activeTabId, requestId, {
       prompt: fullPrompt,
       projectPath: resolvedPath,
-      sessionId: tab.claudeSessionId || undefined,
+      sessionId: isCodexProvider ? undefined : (tab.claudeSessionId || undefined),
       model: preferredModel || undefined,
       provider: preferredProvider || 'claude',
       addDirs: tab.additionalDirs.length > 0 ? tab.additionalDirs : undefined,
-      images: imageAttachments.length > 0 ? imageAttachments : undefined,
+      images: !isCodexProvider && imageAttachments.length > 0 ? imageAttachments : undefined,
+      imagePaths: isCodexProvider && imgPaths && imgPaths.length > 0 ? imgPaths : undefined,
     }).catch((err: Error) => {
       get().handleError(activeTabId, {
         message: err.message,

@@ -124,6 +124,7 @@ export default function App() {
   const isExpanded = useSessionStore((s) => s.isExpanded)
   const marketplaceOpen = useSessionStore((s) => s.marketplaceOpen)
   const isStealth = !useThemeStore((s) => s.visibleInScreenShare)
+  const isCodex = useSessionStore((s) => s.preferredProvider) === 'codex'
   const isRunning = activeTabStatus === 'running' || activeTabStatus === 'connecting'
   const needsAttention = activeTabStatus === 'failed' || activeTabStatus === 'dead'
   const hasPermission = useSessionStore((s) => {
@@ -384,30 +385,36 @@ export default function App() {
             {/* Stacked circle buttons */}
             <div data-clui-ui className="circles-out">
               <div className="btn-stack">
+                {/* Attach file — Claude only (Codex only supports images via screenshot) */}
+                {!isCodex && (
+                  <button
+                    className="stack-btn stack-btn-1 glass-surface"
+                    title={isStealth ? "Disabled in stealth mode" : "Attach file"}
+                    onClick={handleAttachFile}
+                    disabled={isRunning || isStealth}
+                  >
+                    <Paperclip size={17} />
+                  </button>
+                )}
                 <button
-                  className="stack-btn stack-btn-1 glass-surface"
-                  title={isStealth ? "Disabled in stealth mode" : "Attach file"}
-                  onClick={handleAttachFile}
-                  disabled={isRunning || isStealth}
-                >
-                  <Paperclip size={17} />
-                </button>
-                <button
-                  className="stack-btn stack-btn-2 glass-surface"
+                  className={`stack-btn ${isCodex ? 'stack-btn-1' : 'stack-btn-2'} glass-surface`}
                   title="Take screenshot"
                   onClick={handleScreenshot}
                   disabled={isRunning}
                 >
                   <Camera size={17} />
                 </button>
-                <button
-                  className="stack-btn stack-btn-3 glass-surface"
-                  title="Skills & Plugins"
-                  onClick={() => useSessionStore.getState().toggleMarketplace()}
-                  disabled={isRunning}
-                >
-                  <HeadCircuit size={17} />
-                </button>
+                {/* Skills marketplace — Claude only */}
+                {!isCodex && (
+                  <button
+                    className={`stack-btn ${isCodex ? 'stack-btn-2' : 'stack-btn-3'} glass-surface`}
+                    title="Skills & Plugins"
+                    onClick={() => useSessionStore.getState().toggleMarketplace()}
+                    disabled={isRunning}
+                  >
+                    <HeadCircuit size={17} />
+                  </button>
+                )}
               </div>
             </div>
 

@@ -42,6 +42,7 @@ export function TabStrip() {
   const selectTab = useSessionStore((s) => s.selectTab)
   const createTab = useSessionStore((s) => s.createTab)
   const closeTab = useSessionStore((s) => s.closeTab)
+  const preferredProvider = useSessionStore((s) => s.preferredProvider)
   const colors = useColors()
 
   return (
@@ -113,16 +114,20 @@ export function TabStrip() {
 
       {/* Pinned action buttons — always visible on the right */}
       <div className="flex items-center gap-0.5 flex-shrink-0 ml-1 pr-2">
-        <button
-          onClick={() => createTab()}
-          className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors"
-          style={{ color: colors.textTertiary }}
-          title="New tab"
-        >
-          <Plus size={14} />
-        </button>
-
-        <HistoryPicker />
+        {/* New tab + History — Claude only (Codex exec doesn't support session resume) */}
+        {preferredProvider !== 'codex' && (
+          <>
+            <button
+              onClick={() => createTab()}
+              className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-colors"
+              style={{ color: colors.textTertiary }}
+              title="New tab"
+            >
+              <Plus size={14} />
+            </button>
+            <HistoryPicker />
+          </>
+        )}
 
         <SettingsPopover />
       </div>

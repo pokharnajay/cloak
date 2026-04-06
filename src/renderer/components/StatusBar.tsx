@@ -54,11 +54,9 @@ function ModelPicker() {
     setOpen((o) => !o)
   }
 
-  const isCodex = preferredProvider === 'codex'
   const claudeModels = PROVIDERS.claude.models
 
   const activeLabel = (() => {
-    if (isCodex) return 'Codex'
     if (preferredModel) {
       const m = claudeModels.find((m) => m.modelId === preferredModel)
       return m?.label || preferredModel
@@ -111,7 +109,7 @@ function ModelPicker() {
           <div className="py-1">
             {/* Claude models */}
             {claudeModels.map((m) => {
-              const isSelected = !isCodex && (preferredModel === m.modelId || (!preferredModel && m.modelId === claudeModels[0].modelId))
+              const isSelected = preferredModel === m.modelId || (!preferredModel && m.modelId === claudeModels[0].modelId)
               return (
                 <button
                   key={m.modelId}
@@ -128,26 +126,6 @@ function ModelPicker() {
                   )
                 })}
 
-            {/* Divider + Codex toggle */}
-            <div className="mx-2 my-1" style={{ height: 1, background: colors.popoverBorder }} />
-            <button
-              onClick={() => {
-                if (isCodex) {
-                  setPreferredModel('claude', claudeModels[0].modelId)
-                } else {
-                  setPreferredModel('codex', PROVIDERS.codex.models[0].modelId)
-                }
-                setOpen(false)
-              }}
-              className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
-              style={{
-                color: isCodex ? colors.accent : colors.textSecondary,
-                fontWeight: isCodex ? 600 : 400,
-              }}
-            >
-              <span>{isCodex ? 'Switch to Claude' : 'Switch to Codex'}</span>
-              {isCodex && <Check size={12} style={{ color: colors.accent }} />}
-            </button>
           </div>
         </motion.div>,
         popoverLayer,
@@ -319,6 +297,8 @@ export function StatusBar() {
     return () => document.removeEventListener('mousedown', handler)
   }, [dirOpen])
 
+  const isCodex = useSessionStore((s) => s.preferredProvider) === 'codex'
+
   if (!tab) return null
 
   const isRunning = tab.status === 'running' || tab.status === 'connecting'
@@ -457,24 +437,30 @@ export function StatusBar() {
 
         <span style={{ color: colors.textMuted, fontSize: 10 }}>|</span>
 
-        <ModelPicker />
+        {isCodex ? (
+          <span className="text-[10px] px-1.5 py-0.5" style={{ color: colors.textTertiary }}>Codex</span>
+        ) : (
+          <ModelPicker />
+        )}
 
         <span style={{ color: colors.textMuted, fontSize: 10 }}>|</span>
 
         <PermissionModePicker />
       </div>
 
-      {/* Right — Open in CLI */}
+      {/* Right — Open in CLI (Claude only — Codex doesn't support resume) */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button
-          onClick={handleOpenInTerminal}
-          className="flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 transition-colors"
-          style={{ color: colors.textTertiary }}
-          title="Open this session in Terminal"
-        >
-          Open in CLI
-          <Terminal size={11} />
-        </button>
+        {!isCodex && (
+          <button
+            onClick={handleOpenInTerminal}
+            className="flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 transition-colors"
+            style={{ color: colors.textTertiary }}
+            title="Open this session in Terminal"
+          >
+            Open in CLI
+            <Terminal size={11} />
+          </button>
+        )}
       </div>
     </div>
   )
