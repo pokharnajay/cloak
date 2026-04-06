@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types'
-import type { RunOptions, NormalizedEvent, HealthReport, EnrichedError, Attachment, SessionMeta, CatalogPlugin, SessionLoadMessage } from '../shared/types'
+import type { RunOptions, NormalizedEvent, HealthReport, EnrichedError, Attachment, SessionMeta, CatalogPlugin, SessionLoadMessage, ProviderToast } from '../shared/types'
 
 export interface CluiAPI {
   // ─── Request-response (renderer → main) ───
@@ -31,6 +31,9 @@ export interface CluiAPI {
   installPlugin(repo: string, pluginName: string, marketplace: string, sourcePath?: string, isSkillMd?: boolean): Promise<{ ok: boolean; error?: string }>
   uninstallPlugin(pluginName: string): Promise<{ ok: boolean; error?: string }>
   setPermissionMode(mode: string): void
+  checkProviders(): Promise<{ claude: { available: boolean; binary: string | null }; codex: { available: boolean; binary: string | null } }>
+  installCodex(): Promise<{ ok: boolean; error?: string }>
+  onProviderToast(callback: (toast: ProviderToast) => void): () => void
   getTheme(): Promise<{ isDark: boolean }>
   onThemeChange(callback: (isDark: boolean) => void): () => void
   getShortcuts(): Promise<{ shortcuts: Record<string, string>; defaults: Record<string, string>; platform: string }>
@@ -91,6 +94,13 @@ const api: CluiAPI = {
   uninstallPlugin: (pluginName) =>
     ipcRenderer.invoke(IPC.MARKETPLACE_UNINSTALL, { pluginName }),
   setPermissionMode: (mode) => ipcRenderer.send(IPC.SET_PERMISSION_MODE, mode),
+  checkProviders: () => ipcRenderer.invoke(IPC.CHECK_PROVIDERS),
+  installCodex: () => ipcRenderer.invoke(IPC.INSTALL_CODEX),
+  onProviderToast: (callback) => {
+    const handler = (_e: Electron.IpcRendererEvent, toast: ProviderToast) => callback(toast)
+    ipcRenderer.on(IPC.PROVIDER_TOAST, handler)
+    return () => ipcRenderer.removeListener(IPC.PROVIDER_TOAST, handler)
+  },
   getTheme: () => ipcRenderer.invoke(IPC.GET_THEME),
   onThemeChange: (callback) => {
     const handler = (_e: Electron.IpcRendererEvent, isDark: boolean) => callback(isDark)

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Microphone, ArrowUp, SpinnerGap, X, Check } from '@phosphor-icons/react'
-import { useSessionStore, AVAILABLE_MODELS } from '../stores/sessionStore'
+import { useSessionStore, AVAILABLE_MODELS, PROVIDERS, findProviderModel } from '../stores/sessionStore'
 import { AttachmentChips } from './AttachmentChips'
 import { SlashCommandMenu, getFilteredCommandsWithExtras, type SlashCommand } from './SlashCommandMenu'
 import { useColors } from '../theme'
@@ -181,12 +181,16 @@ export function InputBar() {
         const model = tab?.sessionModel || null
         const version = tab?.sessionVersion || staticInfo?.version || null
         const current = preferredModel || model || 'default'
-        const lines = AVAILABLE_MODELS.map((m) => {
-          const active = m.id === current || (!preferredModel && m.id === model)
-          return `  ${active ? '\u25CF' : '\u25CB'} ${m.label} (${m.id})`
-        })
-        const header = version ? `Claude Code ${version}` : 'Claude Code'
-        addSystemMessage(`${header}\n\n${lines.join('\n')}\n\nSwitch model: type /model <name>\n  e.g. /model sonnet`)
+        const sections: string[] = []
+        for (const [, provider] of Object.entries(PROVIDERS)) {
+          const modelLines = provider.models.map((m) => {
+            const active = m.modelId === current || (!preferredModel && m.modelId === model)
+            return `  ${active ? '\u25CF' : '\u25CB'} ${m.label} (${m.modelId})`
+          })
+          sections.push(`${provider.label}:\n${modelLines.join('\n')}`)
+        }
+        const header = version ? `Claude Code ${version}` : 'AI Models'
+        addSystemMessage(`${header}\n\n${sections.join('\n\n')}\n\nSwitch model: type /model <name>\n  e.g. /model sonnet, /model o4-mini`)
         break
       }
       case '/mcp': {
@@ -270,18 +274,27 @@ export function InputBar() {
     const modelMatch = prompt.match(/^\/model\s+(\S+)/i)
     if (modelMatch) {
       const query = modelMatch[1].toLowerCase()
-      const match = AVAILABLE_MODELS.find((m: { id: string; label: string }) =>
-        m.id.toLowerCase().includes(query) || m.label.toLowerCase().includes(query)
-      )
-      if (match) {
-        setPreferredModel(match.id)
+      const pm = (() => {
+        for (const [, provider] of Object.entries(PROVIDERS)) {
+          for (const m of provider.models) {
+            if (m.modelId.toLowerCase().includes(query) || m.label.toLowerCase().includes(query)) {
+              return m
+            }
+          }
+        }
+        return undefined
+      })()
+      if (pm) {
+        setPreferredModel(pm.provider, pm.modelId)
         setInput('')
         setSlashFilter(null)
-        addSystemMessage(`Model switched to ${match.label} (${match.id})`)
+        const providerLabel = PROVIDERS[pm.provider].label
+        addSystemMessage(`Model switched to ${providerLabel} / ${pm.label} (${pm.modelId})`)
       } else {
         setInput('')
         setSlashFilter(null)
-        addSystemMessage(`Unknown model "${modelMatch[1]}". Available: opus, sonnet, haiku`)
+        const allNames = Object.values(PROVIDERS).flatMap((p) => p.models.map((m) => m.label.toLowerCase()))
+        addSystemMessage(`Unknown model "${modelMatch[1]}". Available: ${allNames.join(', ')}`)
       }
       return
     }

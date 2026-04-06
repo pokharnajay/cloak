@@ -1,3 +1,16 @@
+// ─── Provider Types ───
+
+export type ProviderId = 'claude' | 'codex'
+
+export interface ProviderToast {
+  type: 'info' | 'success' | 'error'
+  message: string
+  /** Optional action label (e.g. "Install") */
+  action?: string
+  /** Optional action IPC channel to invoke on click */
+  actionChannel?: string
+}
+
 // ─── Claude Code Stream Event Types (verified from v2.1.63) ───
 
 export interface InitEvent {
@@ -218,6 +231,8 @@ export interface RunOptions {
   maxBudgetUsd?: number
   systemPrompt?: string
   model?: string
+  /** AI provider to use for this run */
+  provider?: ProviderId
   /** Path to CLUI-scoped settings file with hook config (passed via --settings) */
   hookSettingsPath?: string
   /** Extra directories to add via --add-dir (session-preserving) */
@@ -237,6 +252,8 @@ export interface TabRegistryEntry {
   createdAt: number
   lastActivityAt: number
   promptCount: number
+  /** Which AI provider this tab last used */
+  provider?: ProviderId
 }
 
 export interface HealthReport {
@@ -360,6 +377,11 @@ export const IPC = {
 
   // Permission mode
   SET_PERMISSION_MODE: 'clui:set-permission-mode',
+
+  // Provider management
+  CHECK_PROVIDERS: 'clui:check-providers',
+  INSTALL_CODEX: 'clui:install-codex',
+  PROVIDER_TOAST: 'clui:provider-toast',
 
   // Screen sharing
   SET_CONTENT_PROTECTION: 'clui:set-content-protection',

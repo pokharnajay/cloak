@@ -1,15 +1,48 @@
 import { create } from 'zustand'
-import type { TabStatus, NormalizedEvent, EnrichedError, Message, TabState, Attachment, CatalogPlugin, PluginStatus } from '../../shared/types'
+import type { TabStatus, NormalizedEvent, EnrichedError, Message, TabState, Attachment, CatalogPlugin, PluginStatus, ProviderId } from '../../shared/types'
 import { useThemeStore } from '../theme'
 import notificationSrc from '../../../resources/notification.mp3'
 
-// ─── Known models ───
+// ─── Providers & Models ───
 
-export const AVAILABLE_MODELS = [
-  { id: 'claude-opus-4-6', label: 'Opus 4.6' },
-  { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
-] as const
+export interface ProviderModel {
+  provider: ProviderId
+  modelId: string
+  label: string
+}
+
+export const PROVIDERS: Record<ProviderId, { label: string; models: ProviderModel[] }> = {
+  claude: {
+    label: 'Claude',
+    models: [
+      { provider: 'claude', modelId: 'claude-opus-4-6', label: 'Opus 4.6' },
+      { provider: 'claude', modelId: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+      { provider: 'claude', modelId: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
+    ],
+  },
+  codex: {
+    label: 'Codex',
+    models: [
+      { provider: 'codex', modelId: 'o4-mini', label: 'o4-mini' },
+      { provider: 'codex', modelId: 'o3', label: 'o3' },
+      { provider: 'codex', modelId: 'gpt-4.1', label: 'GPT-4.1' },
+    ],
+  },
+}
+
+// Flat list for backward compatibility
+export const AVAILABLE_MODELS = Object.values(PROVIDERS).flatMap((p) =>
+  p.models.map((m) => ({ id: m.modelId, label: m.label }))
+)
+
+/** Find a ProviderModel by modelId across all providers */
+export function findProviderModel(modelId: string): ProviderModel | undefined {
+  for (const p of Object.values(PROVIDERS)) {
+    const found = p.models.find((m) => m.modelId === modelId)
+    if (found) return found
+  }
+  return undefined
+}
 
 // ─── Store ───
 
@@ -31,6 +64,8 @@ interface State {
   staticInfo: StaticInfo | null
   /** User's preferred model override (null = use default) */
   preferredModel: string | null
+  /** User's preferred AI provider (null = 'claude') */
+  preferredProvider: ProviderId | null
   /** Global permission mode: 'ask' shows cards, 'auto' = full auto, 'plan' = read-only */
   permissionMode: 'ask' | 'auto' | 'plan'
 
@@ -46,8 +81,9 @@ interface State {
 
   // Actions
   initStaticInfo: () => Promise<void>
-  setPreferredModel: (model: string | null) => void
+  setPreferredModel: (provider: ProviderId, modelId: string) => void
   setPermissionMode: (mode: 'ask' | 'auto' | 'plan') => void
+  installCodex: () => Promise<void>
   createTab: () => Promise<string>
   selectTab: (tabId: string) => void
   closeTab: (tabId: string) => void
@@ -145,6 +181,7 @@ export const useSessionStore = create<State>((set, get) => ({
   isExpanded: false,
   staticInfo: null,
   preferredModel: null,
+  preferredProvider: null,
   permissionMode: 'ask',
 
   // Marketplace
@@ -173,8 +210,14 @@ export const useSessionStore = create<State>((set, get) => ({
     } catch {}
   },
 
-  setPreferredModel: (model) => {
-    set({ preferredModel: model })
+  setPreferredModel: (provider, modelId) => {
+    set({ preferredProvider: provider, preferredModel: modelId })
+  },
+
+  installCodex: async () => {
+    try {
+      await window.clui.installCodex()
+    } catch {}
   },
 
   setPermissionMode: (mode) => {
@@ -617,12 +660,13 @@ export const useSessionStore = create<State>((set, get) => ({
     }))
 
     // Send to backend — ControlPlane will queue if a run is active
-    const { preferredModel } = get()
+    const { preferredModel, preferredProvider } = get()
     window.clui.prompt(activeTabId, requestId, {
       prompt: fullPrompt,
       projectPath: resolvedPath,
       sessionId: tab.claudeSessionId || undefined,
       model: preferredModel || undefined,
+      provider: preferredProvider || 'claude',
       addDirs: tab.additionalDirs.length > 0 ? tab.additionalDirs : undefined,
       images: imageAttachments.length > 0 ? imageAttachments : undefined,
     }).catch((err: Error) => {
