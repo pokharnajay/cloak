@@ -113,6 +113,7 @@ export default function App() {
 
   const isExpanded = useSessionStore((s) => s.isExpanded)
   const marketplaceOpen = useSessionStore((s) => s.marketplaceOpen)
+  const isStealth = !useThemeStore((s) => s.visibleInScreenShare)
   const isRunning = activeTabStatus === 'running' || activeTabStatus === 'connecting'
   const needsAttention = activeTabStatus === 'failed' || activeTabStatus === 'dead'
   const hasPermission = useSessionStore((s) => {
@@ -156,10 +157,11 @@ export default function App() {
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    if (isStealth) return // Block drag in stealth mode
     if (e.dataTransfer.types.includes('Files')) {
       setIsDragOver(true)
     }
-  }, [])
+  }, [isStealth])
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -171,6 +173,7 @@ export default function App() {
     e.preventDefault()
     e.stopPropagation()
     setIsDragOver(false)
+    if (isStealth) return // Block drop in stealth mode
 
     const files = Array.from(e.dataTransfer.files)
     if (files.length === 0) return
@@ -184,7 +187,7 @@ export default function App() {
       size: file.size,
     }))
     addAttachments(attachments)
-  }, [addAttachments])
+  }, [addAttachments, isStealth])
 
   return (
     <PopoverLayerProvider>
@@ -335,17 +338,17 @@ export default function App() {
               <div className="btn-stack">
                 <button
                   className="stack-btn stack-btn-1 glass-surface"
-                  title="Attach file"
+                  title={isStealth ? "Disabled in stealth mode" : "Attach file"}
                   onClick={handleAttachFile}
-                  disabled={isRunning}
+                  disabled={isRunning || isStealth}
                 >
                   <Paperclip size={17} />
                 </button>
                 <button
                   className="stack-btn stack-btn-2 glass-surface"
-                  title="Take screenshot"
+                  title={isStealth ? "Disabled in stealth mode" : "Take screenshot"}
                   onClick={handleScreenshot}
-                  disabled={isRunning}
+                  disabled={isRunning || isStealth}
                 >
                   <Camera size={17} />
                 </button>
