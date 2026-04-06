@@ -17,7 +17,11 @@ An invisible, floating desktop overlay for **Claude Code** on macOS and Windows.
 | macOS (Apple Silicon) | [Cloak.dmg](https://github.com/pokharnajay/cloak/releases/latest) |
 | Windows | Coming soon |
 
-> macOS: Open the DMG, drag **Cloak** to Applications. First launch: **System Settings > Privacy & Security > Open Anyway**.
+> **macOS install:**
+> 1. Open the DMG, drag **Cloak** to Applications
+> 2. Open Terminal and run: `xattr -cr /Applications/Cloak.app`
+> 3. Launch Cloak from Applications
+> 4. Grant Accessibility, Screen Recording & Microphone permissions when prompted
 
 ## Features
 
