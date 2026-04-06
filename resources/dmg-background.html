@@ -1,131 +1,100 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
 <style>
-@font-face {
-    font-family: 'BigShoulders';
-    src: url('file:///Users/jaypokharna/.claude/plugins/marketplaces/claude-superkit/canvas-super-creator/skills/canvas-super-creator/canvas-fonts/BigShoulders-Bold.ttf') format('truetype');
-    font-weight: 700;
-}
-@font-face {
-    font-family: 'JetBrainsMono';
-    src: url('file:///Users/jaypokharna/.claude/plugins/marketplaces/claude-superkit/canvas-super-creator/skills/canvas-super-creator/canvas-fonts/JetBrainsMono-Regular.ttf') format('truetype');
-    font-weight: 400;
-}
-
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 540px; height: 380px; overflow: hidden; -webkit-font-smoothing: antialiased; }
 
 body {
-    --bg: #070D14;
+    --bg: #060C12;
     --accent: #00E5FF;
     --accent2: #1DE9B6;
     --accent3: #2CB1BC;
     position: relative;
     background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
 }
 
-/* Grid */
+/* Grid — subtle tech feel */
 .grid {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background:
-        repeating-linear-gradient(0deg, rgba(0,229,255,0.03) 0px, rgba(0,229,255,0.03) 1px, transparent 1px, transparent 30px),
-        repeating-linear-gradient(90deg, rgba(0,229,255,0.03) 0px, rgba(0,229,255,0.03) 1px, transparent 1px, transparent 30px);
-    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 70%);
-    -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 70%);
+        repeating-linear-gradient(0deg, rgba(0,229,255,0.025) 0px, rgba(0,229,255,0.025) 1px, transparent 1px, transparent 32px),
+        repeating-linear-gradient(90deg, rgba(0,229,255,0.025) 0px, rgba(0,229,255,0.025) 1px, transparent 1px, transparent 32px);
+    mask-image: radial-gradient(ellipse 70% 70% at 50% 45%, black 15%, transparent 65%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 45%, black 15%, transparent 65%);
     z-index: 1;
 }
 
-/* Orbs */
+/* Orbs — ambient energy */
 .orb { position: absolute; border-radius: 50%; z-index: 1; }
-.orb-1 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(0,229,255,0.14) 0%, transparent 70%); top: -100px; left: -80px; }
-.orb-2 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(29,233,182,0.1) 0%, transparent 70%); bottom: -120px; right: -60px; }
-.orb-3 { width: 200px; height: 200px; background: radial-gradient(circle, rgba(44,177,188,0.08) 0%, transparent 70%); top: 40%; left: 50%; }
+.orb-1 { width: 320px; height: 320px; background: radial-gradient(circle, rgba(0,229,255,0.13) 0%, transparent 70%); top: -80px; left: -60px; }
+.orb-2 { width: 280px; height: 280px; background: radial-gradient(circle, rgba(29,233,182,0.09) 0%, transparent 70%); bottom: -100px; right: -40px; }
+.orb-3 { width: 160px; height: 160px; background: radial-gradient(circle, rgba(0,229,255,0.07) 0%, transparent 70%); top: 35%; left: 55%; }
 
-/* Particles */
+/* Particles — floating energy dots */
 .p { position: absolute; border-radius: 50%; z-index: 5; }
-.p1 { width: 3px; height: 3px; background: var(--accent); top: 12%; left: 15%; opacity: 0.5; box-shadow: 0 0 8px var(--accent); }
-.p2 { width: 2px; height: 2px; background: var(--accent2); top: 20%; right: 12%; opacity: 0.4; box-shadow: 0 0 6px var(--accent2); }
-.p3 { width: 3px; height: 3px; background: var(--accent); bottom: 18%; left: 20%; opacity: 0.35; box-shadow: 0 0 10px var(--accent); }
-.p4 { width: 2px; height: 2px; background: var(--accent2); bottom: 25%; right: 18%; opacity: 0.45; box-shadow: 0 0 6px var(--accent2); }
-.p5 { width: 4px; height: 4px; background: var(--accent3); top: 50%; left: 50%; opacity: 0.2; box-shadow: 0 0 12px var(--accent3); }
-.p6 { width: 2px; height: 2px; background: var(--accent); top: 8%; left: 50%; opacity: 0.4; box-shadow: 0 0 6px var(--accent); }
-.p7 { width: 3px; height: 3px; background: var(--accent2); bottom: 10%; left: 55%; opacity: 0.3; box-shadow: 0 0 8px var(--accent2); }
+.p1 { width: 3px; height: 3px; background: var(--accent); top: 10%; left: 12%; opacity: 0.5; box-shadow: 0 0 10px var(--accent); }
+.p2 { width: 2px; height: 2px; background: var(--accent2); top: 18%; right: 10%; opacity: 0.4; box-shadow: 0 0 8px var(--accent2); }
+.p3 { width: 3px; height: 3px; background: var(--accent); bottom: 22%; left: 18%; opacity: 0.3; box-shadow: 0 0 10px var(--accent); }
+.p4 { width: 2px; height: 2px; background: var(--accent2); bottom: 15%; right: 15%; opacity: 0.4; box-shadow: 0 0 8px var(--accent2); }
+.p5 { width: 2px; height: 2px; background: var(--accent); top: 6%; left: 48%; opacity: 0.35; box-shadow: 0 0 6px var(--accent); }
+.p6 { width: 3px; height: 3px; background: var(--accent3); bottom: 8%; left: 52%; opacity: 0.25; box-shadow: 0 0 8px var(--accent3); }
 
 /* Accent lines */
 .line-h {
     position: absolute; left: 0; right: 0; height: 1px; z-index: 2;
-    background: linear-gradient(90deg, transparent, rgba(0,229,255,0.12) 30%, rgba(29,233,182,0.15) 70%, transparent);
+    background: linear-gradient(90deg, transparent 5%, rgba(0,229,255,0.1) 30%, rgba(29,233,182,0.12) 70%, transparent 95%);
 }
-.lh1 { top: 25%; }
-.lh2 { bottom: 22%; }
+.lh1 { top: 24%; }
+.lh2 { bottom: 20%; }
 
-/* Content */
-.content {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-    z-index: 10;
+/* Noise grain */
+.noise {
+    position: absolute; top: 0; left: 0; width: 540px; height: 380px;
+    z-index: 3; pointer-events: none; opacity: 0.25; mix-blend-mode: overlay;
 }
 
-/* Title area */
+/* Title — top center */
 .title-area {
-    margin-top: 28px;
-    text-align: center;
+    position: absolute; top: 24px; left: 0; right: 0;
+    text-align: center; z-index: 10;
 }
 .title {
-    font-family: 'BigShoulders', sans-serif;
-    font-size: 36px; font-weight: 700;
+    font-size: 34px; font-weight: 800;
     color: #fff;
-    letter-spacing: -0.01em;
-    text-shadow: 0 0 30px rgba(0,229,255,0.2);
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    text-shadow: 0 0 40px rgba(0,229,255,0.2), 0 0 80px rgba(0,229,255,0.08);
 }
-.subtitle {
-    font-family: 'JetBrainsMono', monospace;
-    font-size: 11px; color: rgba(0,229,255,0.6);
-    margin-top: 4px; letter-spacing: 0.06em;
-}
-
-/* Install instruction */
-.install-hint {
-    position: absolute;
-    bottom: 30px;
-    width: 100%;
-    text-align: center;
-    font-family: 'JetBrainsMono', monospace;
-    font-size: 12px;
-    color: rgba(255,255,255,0.35);
-    letter-spacing: 0.04em;
-}
-.install-hint .arrow {
-    display: inline-block;
+.tagline {
+    font-size: 11px; font-weight: 500;
     color: var(--accent);
-    font-size: 18px;
-    vertical-align: middle;
-    margin: 0 8px;
-    opacity: 0.6;
+    margin-top: 6px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.7;
 }
-
-/* Divider below title */
 .divider {
-    width: 120px; height: 2px; margin-top: 10px;
-    background: linear-gradient(90deg, var(--accent), var(--accent3), var(--accent2));
+    width: 100px; height: 2px; margin: 10px auto 0;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent3), var(--accent2), transparent);
     border-radius: 1px;
-    box-shadow: 0 0 8px rgba(0,229,255,0.25);
+    box-shadow: 0 0 12px rgba(0,229,255,0.3);
 }
 
-/* Noise */
-.noise {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 3; pointer-events: none; opacity: 0.3; mix-blend-mode: overlay;
+/* Bottom hint */
+.hint {
+    position: absolute; bottom: 18px; left: 0; right: 0;
+    text-align: center; z-index: 10;
+    font-size: 11px; font-weight: 500;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
 }
-
-/* Drop zone area — where icons sit (transparent so DMG icons show through) */
-.drop-zone {
-    position: absolute;
-    top: 110px; left: 40px; right: 40px; bottom: 70px;
-    /* Subtle border to frame the icon area */
-    border: 1px solid rgba(0,229,255,0.06);
-    border-radius: 16px;
-    z-index: 4;
+.hint .arr {
+    color: var(--accent);
+    opacity: 0.5;
+    font-size: 14px;
+    margin: 0 6px;
 }
 </style>
 </head>
@@ -135,35 +104,26 @@ body {
 <div class="orb orb-1"></div>
 <div class="orb orb-2"></div>
 <div class="orb orb-3"></div>
-
 <div class="line-h lh1"></div>
 <div class="line-h lh2"></div>
-
 <div class="p p1"></div>
 <div class="p p2"></div>
 <div class="p p3"></div>
 <div class="p p4"></div>
 <div class="p p5"></div>
 <div class="p p6"></div>
-<div class="p p7"></div>
 
-<svg class="noise" width="100%" height="100%">
+<svg class="noise" viewBox="0 0 540 380">
   <filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter>
-  <rect width="100%" height="100%" filter="url(#g)"/>
+  <rect width="540" height="380" filter="url(#g)"/>
 </svg>
 
-<div class="content">
-    <div class="title-area">
-        <div class="title">CLOAK</div>
-        <div class="subtitle">Invisible overlay for Claude Code</div>
-        <div class="divider" style="margin: 10px auto 0;"></div>
-    </div>
+<div class="title-area">
+    <div class="title">Cloak</div>
+    <div class="tagline">Make Claude Invisible</div>
+    <div class="divider"></div>
 </div>
 
-<div class="drop-zone"></div>
-
-<div class="install-hint">
-    Drag <span class="arrow">&#10132;</span> to Applications
-</div>
+<div class="hint">Drag <span class="arr">&#10132;</span> to Applications</div>
 
 </body></html>
