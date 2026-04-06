@@ -36,12 +36,12 @@ const controlPlane = new ControlPlane(INTERACTIVE_PTY)
 // The UI itself still launches in compact mode; extra width is transparent/click-through.
 const BAR_WIDTH = 1040
 const PILL_HEIGHT = 720  // Fixed native window height — extra room for expanded UI + shadow buffers
-const PILL_BOTTOM_MARGIN = 24
+const PILL_BOTTOM_MARGIN = 60
 
 // ─── Broadcast to renderer ───
 
 function broadcast(channel: string, ...args: unknown[]): void {
-  if (mainWindow && !mainWindow.isDestroyed()) {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
     mainWindow.webContents.send(channel, ...args)
   }
 }
@@ -180,7 +180,7 @@ function createWindow(): void {
 }
 
 function showWindow(source = 'unknown'): void {
-  if (!mainWindow) return
+  if (!mainWindow || mainWindow.isDestroyed()) return
   const toggleId = ++toggleSequence
 
   // Position on the display where the cursor currently is (not always primary)
@@ -216,7 +216,7 @@ function showWindow(source = 'unknown'): void {
 }
 
 function toggleWindow(source = 'unknown'): void {
-  if (!mainWindow) return
+  if (!mainWindow || mainWindow.isDestroyed()) return
   const toggleId = ++toggleSequence
   if (SPACES_DEBUG) {
     log(`[spaces] toggle#${toggleId} source=${source} start`)
@@ -358,7 +358,7 @@ ipcMain.handle(IPC.CLOSE_TAB, (_event, tabId: string) => {
 })
 
 ipcMain.on(IPC.SET_PERMISSION_MODE, (_event, mode: string) => {
-  if (mode !== 'ask' && mode !== 'auto') {
+  if (mode !== 'ask' && mode !== 'auto' && mode !== 'plan') {
     log(`IPC SET_PERMISSION_MODE: invalid mode "${mode}" — ignoring`)
     return
   }

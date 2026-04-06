@@ -326,13 +326,20 @@ export class PtyRunManager extends EventEmitter {
       '--permission-mode', 'default',
     ]
 
+    // Permission mode flags
+    if (options.permissionMode === 'auto') {
+      args.push('--dangerously-skip-permissions')
+    } else if (options.permissionMode === 'plan') {
+      args.push('--permission-mode', 'plan')
+    }
+
     if (options.sessionId) {
       args.push('--resume', options.sessionId)
     }
     if (options.model) {
       args.push('--model', options.model)
     }
-    if (options.allowedTools?.length) {
+    if (options.permissionMode !== 'auto' && options.allowedTools?.length) {
       args.push('--allowedTools', options.allowedTools.join(','))
     }
     if (options.systemPrompt) {

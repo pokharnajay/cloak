@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { DotsThree, Bell, ArrowsOutSimple, Moon, Monitor, SignOut, Camera, Keyboard } from '@phosphor-icons/react'
+import { DotsThree, Bell, ArrowsOutSimple, Moon, EyeSlash, SignOut, Camera, Keyboard } from '@phosphor-icons/react'
 import { ShortcutEditor } from './ShortcutEditor'
 import { useThemeStore } from '../theme'
 import { useSessionStore } from '../stores/sessionStore'
@@ -78,15 +78,8 @@ export function SettingsPopover() {
     const margin = 8
     const right = window.innerWidth - rect.right
 
-    if (isExpanded) {
-      // Open downward below the trigger
-      const top = rect.bottom + gap
-      setPos({ top, right, maxHeight: Math.max(120, window.innerHeight - top - margin) })
-      return
-    }
-
-    // Open upward from trigger
-    setPos({ bottom: window.innerHeight - rect.top + gap, right, maxHeight: undefined })
+    // Always open upward from trigger
+    setPos({ bottom: window.innerHeight - rect.top + gap, right, maxHeight: Math.max(120, rect.top - margin) })
   }, [isExpanded])
 
   useEffect(() => {
@@ -151,9 +144,9 @@ export function SettingsPopover() {
         <motion.div
           ref={popoverRef}
           data-clui-ui
-          initial={{ opacity: 0, y: isExpanded ? -4 : 4 }}
+          initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: isExpanded ? -4 : 4 }}
+          exit={{ opacity: 0, y: 4 }}
           transition={{ duration: 0.12 }}
           className="rounded-xl"
           style={{
@@ -195,20 +188,20 @@ export function SettingsPopover() {
 
             <div style={{ height: 1, background: colors.popoverBorder }} />
 
-            {/* Visible in screen sharing */}
+            {/* Stealth Mode (inverted: ON = invisible = contentProtection true) */}
             <div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Monitor size={14} style={{ color: colors.textTertiary }} />
+                  <EyeSlash size={14} style={{ color: colors.textTertiary }} />
                   <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
-                    Visible in screen sharing
+                    Stealth mode
                   </div>
                 </div>
                 <RowToggle
-                  checked={visibleInScreenShare}
-                  onChange={setVisibleInScreenShare}
+                  checked={!visibleInScreenShare}
+                  onChange={(stealth) => setVisibleInScreenShare(!stealth)}
                   colors={colors}
-                  label="Toggle visibility in screen sharing"
+                  label="Toggle stealth mode"
                 />
               </div>
             </div>

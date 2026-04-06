@@ -346,9 +346,9 @@ export default function App() {
                 </button>
                 <button
                   className="stack-btn stack-btn-2 glass-surface"
-                  title={isStealth ? "Disabled in stealth mode" : "Take screenshot"}
+                  title="Take screenshot"
                   onClick={handleScreenshot}
-                  disabled={isRunning || isStealth}
+                  disabled={isRunning}
                 >
                   <Camera size={17} />
                 </button>

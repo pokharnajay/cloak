@@ -71,8 +71,8 @@ export class ControlPlane extends EventEmitter {
   private permissionServer: PermissionServer
   /** Per-run tokens: requestId → runToken (for cleanup on exit/error) */
   private runTokens = new Map<string, string>()
-  /** Global permission mode: 'ask' shows cards, 'auto' auto-approves */
-  private permissionMode: 'ask' | 'auto' = 'ask'
+  /** Global permission mode: 'ask' shows cards, 'auto' = --dangerously-skip-permissions, 'plan' = read-only */
+  private permissionMode: 'ask' | 'auto' | 'plan' = 'ask'
   /** Resolves when the permission server is ready (or failed). Dispatch awaits this. */
   private hookServerReady: Promise<void>
 
@@ -482,7 +482,7 @@ export class ControlPlane extends EventEmitter {
    * Set global permission mode.
    * 'ask' = show permission cards, 'auto' = auto-approve all tool calls.
    */
-  setPermissionMode(mode: 'ask' | 'auto'): void {
+  setPermissionMode(mode: 'ask' | 'auto' | 'plan'): void {
     log(`Permission mode set to: ${mode}`)
     this.permissionMode = mode
   }

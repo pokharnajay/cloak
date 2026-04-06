@@ -119,6 +119,14 @@ export class RunManager extends EventEmitter {
       '--permission-mode', 'default',
     ]
 
+    // Permission mode flags
+    if (options.permissionMode === 'auto') {
+      args.push('--dangerously-skip-permissions')
+    } else if (options.permissionMode === 'plan') {
+      // Plan mode: read-only, no tool execution
+      args.push('--permission-mode', 'plan')
+    }
+
     if (options.sessionId) {
       args.push('--resume', options.sessionId)
     }
@@ -131,7 +139,7 @@ export class RunManager extends EventEmitter {
       }
     }
 
-    if (options.hookSettingsPath) {
+    if (options.permissionMode !== 'auto' && options.hookSettingsPath) {
       // CLUI-scoped hook settings: the PreToolUse HTTP hook handles permissions
       // for dangerous tools (Bash, Edit, Write, MultiEdit).
       // Auto-approve safe tools so they don't trigger the permission card.
@@ -141,7 +149,7 @@ export class RunManager extends EventEmitter {
         ...(options.allowedTools || []),
       ]
       args.push('--allowedTools', safeAllowed.join(','))
-    } else {
+    } else if (options.permissionMode !== 'auto') {
       // Fallback: no hook server available.
       // Pre-approve common tools so they run without being silently denied.
       const allAllowed = [

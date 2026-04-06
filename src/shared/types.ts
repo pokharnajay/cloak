@@ -212,6 +212,7 @@ export interface RunOptions {
   prompt: string
   projectPath: string
   sessionId?: string
+  permissionMode?: 'ask' | 'auto' | 'plan'
   allowedTools?: string[]
   maxTurns?: number
   maxBudgetUsd?: number

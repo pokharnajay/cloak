@@ -167,7 +167,13 @@ function PermissionModePicker() {
     setOpen((o) => !o)
   }
 
-  const isAuto = permissionMode === 'auto'
+  const modeLabel = permissionMode === 'auto' ? 'Auto' : permissionMode === 'plan' ? 'Plan' : 'Ask'
+
+  const modes: Array<{ id: 'ask' | 'auto' | 'plan'; label: string; desc: string; weight: 'regular' | 'fill' }> = [
+    { id: 'ask', label: 'Ask', desc: 'Approve each tool call', weight: 'regular' },
+    { id: 'auto', label: 'Auto', desc: 'Skip all permissions', weight: 'fill' },
+    { id: 'plan', label: 'Plan', desc: 'Read-only, no edits', weight: 'regular' },
+  ]
 
   return (
     <>
@@ -181,8 +187,8 @@ function PermissionModePicker() {
         }}
         title="Permission mode (global)"
       >
-        <ShieldCheck size={11} weight={isAuto ? 'fill' : 'regular'} />
-        {isAuto ? 'Auto' : 'Ask'}
+        <ShieldCheck size={11} weight={permissionMode === 'auto' ? 'fill' : 'regular'} />
+        {modeLabel}
         <CaretDown size={10} style={{ opacity: 0.6 }} />
       </button>
 
@@ -199,7 +205,7 @@ function PermissionModePicker() {
             position: 'fixed',
             bottom: pos.bottom,
             left: pos.left,
-            width: 180,
+            width: 200,
             pointerEvents: 'auto',
             background: colors.popoverBg,
             backdropFilter: 'blur(20px)',
@@ -209,37 +215,31 @@ function PermissionModePicker() {
           }}
         >
           <div className="py-1">
-            <button
-              onClick={() => { setPermissionMode('ask'); setOpen(false) }}
-              className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
-              style={{
-                color: !isAuto ? colors.textPrimary : colors.textSecondary,
-                fontWeight: !isAuto ? 600 : 400,
-              }}
-            >
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck size={12} />
-                Ask
-              </span>
-              {!isAuto && <Check size={12} style={{ color: colors.accent }} />}
-            </button>
-
-            <div className="mx-2 my-0.5" style={{ height: 1, background: colors.popoverBorder }} />
-
-            <button
-              onClick={() => { setPermissionMode('auto'); setOpen(false) }}
-              className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
-              style={{
-                color: isAuto ? colors.textPrimary : colors.textSecondary,
-                fontWeight: isAuto ? 600 : 400,
-              }}
-            >
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck size={12} weight="fill" />
-                Auto
-              </span>
-              {isAuto && <Check size={12} style={{ color: colors.accent }} />}
-            </button>
+            {modes.map((m, i) => {
+              const isSelected = permissionMode === m.id
+              return (
+                <div key={m.id}>
+                  {i > 0 && <div className="mx-2 my-0.5" style={{ height: 1, background: colors.popoverBorder }} />}
+                  <button
+                    onClick={() => { setPermissionMode(m.id); setOpen(false) }}
+                    className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors"
+                    style={{
+                      color: isSelected ? colors.textPrimary : colors.textSecondary,
+                      fontWeight: isSelected ? 600 : 400,
+                    }}
+                  >
+                    <span className="flex flex-col items-start">
+                      <span className="flex items-center gap-1.5">
+                        <ShieldCheck size={12} weight={m.weight} />
+                        {m.label}
+                      </span>
+                      <span className="text-[9px] ml-[18px]" style={{ color: colors.textMuted }}>{m.desc}</span>
+                    </span>
+                    {isSelected && <Check size={12} style={{ color: colors.accent }} />}
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </motion.div>,
         popoverLayer,
