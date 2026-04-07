@@ -69,13 +69,24 @@
     "win": {
       "icon": "resources/icon.ico",
       "target": [
-        "portable"
+        "nsis"
       ],
       "signAndEditExecutable": false
     },
     "nsis": {
-      "oneClick": true,
-      "allowToChangeInstallationDirectory": false
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Cloak",
+      "uninstallDisplayName": "Cloak",
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "installerHeader": "resources/installerHeader.bmp",
+      "installerSidebar": "resources/installerSidebar.bmp",
+      "uninstallerSidebar": "resources/uninstallerSidebar.bmp",
+      "license": "LICENSE"
     },
     "npmRebuild": false
   },
