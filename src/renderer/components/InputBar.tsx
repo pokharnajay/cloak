@@ -512,8 +512,8 @@ export function InputBar() {
                 color: colors.textPrimary,
                 minHeight: 20,
                 maxHeight: INPUT_MAX_HEIGHT,
-                paddingTop: 15,
-                paddingBottom: 15,
+                paddingTop: 14,
+                paddingBottom: 14,
               }}
             />
 

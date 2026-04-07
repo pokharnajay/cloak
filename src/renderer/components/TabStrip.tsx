@@ -1,9 +1,11 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, EyeSlash } from '@phosphor-icons/react'
+import { createPortal } from 'react-dom'
 import { useSessionStore } from '../stores/sessionStore'
 import { HistoryPicker } from './HistoryPicker'
 import { SettingsPopover } from './SettingsPopover'
+import { usePopoverLayer } from './PopoverLayer'
 import { useColors, useThemeStore } from '../theme'
 import type { TabStatus } from '../../shared/types'
 
@@ -40,17 +42,60 @@ function StealthIndicator() {
   const isStealth = !useThemeStore((s) => s.visibleInScreenShare)
   const setVisibleInScreenShare = useThemeStore((s) => s.setVisibleInScreenShare)
   const colors = useColors()
+  const popoverLayer = usePopoverLayer()
+  const [hover, setHover] = React.useState(false)
+  const ref = React.useRef<HTMLButtonElement>(null)
+  const [pos, setPos] = React.useState({ x: 0, y: 0 })
+
+  const onEnter = () => {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect()
+      setPos({ x: r.left + r.width / 2, y: r.top - 6 })
+    }
+    setHover(true)
+  }
+
+  const label = isStealth ? 'Stealth ON' : 'Stealth OFF'
+
   return (
-    <button
-      onClick={() => setVisibleInScreenShare(isStealth)}
-      className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-all cloak-clickable"
-      style={{
-        color: isStealth ? '#1DE9B6' : colors.textMuted,
-        filter: isStealth ? 'drop-shadow(0 0 4px rgba(29, 233, 182, 0.6)) drop-shadow(0 0 8px rgba(29, 233, 182, 0.3))' : 'none',
-      }}
-    >
-      <EyeSlash size={13} weight={isStealth ? 'fill' : 'regular'} />
-    </button>
+    <>
+      <button
+        ref={ref}
+        onClick={() => setVisibleInScreenShare(isStealth)}
+        onMouseEnter={onEnter}
+        onMouseLeave={() => setHover(false)}
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-all cloak-clickable"
+        style={{
+          color: isStealth ? '#1DE9B6' : colors.textMuted,
+          filter: isStealth ? 'drop-shadow(0 0 4px rgba(29, 233, 182, 0.6)) drop-shadow(0 0 8px rgba(29, 233, 182, 0.3))' : 'none',
+        }}
+      >
+        <EyeSlash size={13} weight={isStealth ? 'fill' : 'regular'} />
+      </button>
+      {popoverLayer && hover && createPortal(
+        <div
+          data-clui-ui
+          style={{
+            position: 'fixed',
+            left: pos.x,
+            top: pos.y,
+            transform: 'translate(-50%, -100%)',
+            padding: '3px 8px',
+            borderRadius: 6,
+            fontSize: 10,
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            background: isStealth ? '#122B25' : '#1a1f2a',
+            color: isStealth ? '#1DE9B6' : colors.textSecondary,
+            border: `1px solid ${isStealth ? 'rgba(29,233,182,0.3)' : 'rgba(255,255,255,0.1)'}`,
+          }}
+        >
+          {label}
+        </div>,
+        popoverLayer,
+      )}
+    </>
   )
 }
 
