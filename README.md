@@ -39,7 +39,7 @@ Download and run the installer — adds to Start menu, Desktop, and auto-starts 
 
 | Download | Architecture |
 |----------|-------------|
-| [Cloak-Setup-0.2.0-x64.exe](https://github.com/pokharnajay/cloak/releases/latest) | Windows x64 |
+| [Cloak-Installer-0.2.0-x64.exe](https://github.com/pokharnajay/cloak/releases/latest) | Windows x64 |
 
 ## Features
 
