@@ -35,7 +35,7 @@ curl -sL https://raw.githubusercontent.com/pokharnajay/cloak/main/install.sh | b
 
 ### Windows
 
-Download and run the installer — adds to Start menu, Desktop, and Programs:
+Download and run the installer — adds to Start menu, Desktop, and auto-starts on boot:
 
 | Download | Architecture |
 |----------|-------------|
@@ -43,17 +43,50 @@ Download and run the installer — adds to Start menu, Desktop, and Programs:
 
 ## Features
 
-- **Dual AI providers** — Claude Code and OpenAI Codex with isolated conversations
-- **Multi-tab sessions** — each tab runs its own Claude/Codex session with live streaming
-- **Keyboard permission handling** — Enter to approve, Esc to deny, number keys for options
-- **Screenshot + Ask** — single hotkey captures your screen and sends to AI (Option+Shift+S)
-- **Stealth mode** — completely invisible in screen shares (no tray icon, no dialogs, no notifications)
-- **File attachments** — drag & drop, file picker, clipboard paste
-- **Session history** — browse and resume past Claude conversations
-- **Model switching** — Opus 4.6, Sonnet 4.6, Haiku 4.5 (Claude); config.toml models (Codex)
-- **Permission modes** — Ask, Auto, or Plan
-- **Dark / Light theme** — smooth animated transitions
-- **Always on top** — floats on all workspaces and fullscreen apps
+### Core
+
+| Feature | Claude Code | Codex |
+|---------|:-----------:|:-----:|
+| Multi-tab sessions | Yes | Yes |
+| Live streaming output | Yes | Yes |
+| Tool call visualization | Yes | Yes |
+| Screenshot + Ask | Yes | Yes |
+| Keyboard permission handling | Yes | Yes |
+| Permission modes (Ask / Auto / Plan) | Yes | Yes |
+| Stealth mode (invisible in screen shares) | Yes | Yes |
+| Dark / Light theme | Yes | Yes |
+| Always on top (all workspaces) | Yes | Yes |
+| Auto-start on boot | Yes | Yes |
+
+### Claude Code Exclusive
+
+| Feature | Details |
+|---------|---------|
+| Model switching | Opus 4.6, Sonnet 4.6, Haiku 4.5 |
+| File attachments | Drag & drop, file picker, clipboard paste |
+| Session history | Browse and resume past conversations |
+| Multi-turn sessions | Built-in via `claude -p --session-id` |
+| Skills marketplace | Install community skills and plugins |
+| Image attachments | Inline base64 in conversation |
+
+### OpenAI Codex Exclusive
+
+| Feature | Details |
+|---------|---------|
+| Model selection | Uses `~/.codex/config.toml` default |
+| Multi-turn conversations | Via `codex exec resume <thread_id>` |
+| Image attachments | Via `-i <filepath>` flag (screenshots) |
+| Sandbox modes | `--full-auto`, `--sandbox read-only`, `--sandbox workspace-write` |
+
+### Stealth Mode
+
+When stealth is ON, Cloak is completely invisible during screen sharing:
+
+- Content protection enabled (OS-level screen capture blocking)
+- No tray icon or dock icon
+- File picker dialogs blocked (would appear in recordings)
+- No system notifications
+- No app switcher visibility
 
 ## Keyboard Shortcuts
 
@@ -63,49 +96,16 @@ Download and run the installer — adds to Start menu, Desktop, and Programs:
 | Screenshot + Ask | Option + Shift + S | Ctrl + Shift + S |
 | Approve permission | Enter | Enter |
 | Deny permission | Esc | Esc |
+| Select option | 1-9 | 1-9 |
 
-## Setup from Source
+## Prerequisites
 
-### Prerequisites
+You need at least one CLI installed:
 
-- **Node.js 20+** (LTS)
-- **Python 3.12+** with `setuptools`
-- **Claude Code CLI** authenticated (`npm i -g @anthropic-ai/claude-code && claude`)
-
-### macOS
-
-```bash
-xcode-select --install
-git clone https://github.com/pokharnajay/cloak.git
-cd cloak
-npm install
-npm run dist
-```
-
-Copy to Applications:
-
-```bash
-rm -rf "/Applications/Cloak.app"
-ditto "release/mac-arm64/Cloak.app" "/Applications/Cloak.app"
-codesign --force --deep --sign - "/Applications/Cloak.app"
-```
-
-Or double-click `install-app.command`.
-
-### Windows
-
-```powershell
-git clone https://github.com/pokharnajay/cloak.git
-cd cloak
-npm install
-npm run dist:win
-```
-
-### Voice Input (macOS only)
-
-```bash
-brew install whisper-cli
-```
+| Provider | Install | Auth |
+|----------|---------|------|
+| Claude Code | `npm i -g @anthropic-ai/claude-code` | `claude` (follow prompts) |
+| Codex | `npm i -g @openai/codex` | `codex` (follow prompts or set `OPENAI_API_KEY`) |
 
 ## Settings
 
@@ -116,21 +116,46 @@ brew install whisper-cli
 | Stealth mode | On | Invisible in screen shares |
 | Dark theme | On | Toggle dark/light mode |
 
+Switch providers from Settings (three-dot menu) — conversations are isolated per provider and restored when switching back.
+
+## Build from Source
+
+<details>
+<summary>macOS</summary>
+
+```bash
+xcode-select --install
+git clone https://github.com/pokharnajay/cloak.git
+cd cloak
+npm install
+npm run dist:dmg
+```
+
+</details>
+
+<details>
+<summary>Windows</summary>
+
+```powershell
+git clone https://github.com/pokharnajay/cloak.git
+cd cloak
+npm install
+npm run dist:win
+```
+
+</details>
+
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
-| "Move to Trash" on first open | Use the one-line installer, or run: `xattr -cr /Applications/Cloak.app && codesign --force --deep --sign - /Applications/Cloak.app` |
+| "Move to Trash" on first open | Use Homebrew or curl installer. Or run: `xattr -cr /Applications/Cloak.app` |
 | App won't open (macOS) | System Settings > Privacy & Security > Open Anyway |
-| `npm install` fails | `xcode-select --install` and `pip install setuptools` |
 | `claude` not found | `npm i -g @anthropic-ai/claude-code` |
 | `codex` not found | `npm i -g @openai/codex` |
 | Screenshots black/empty | Grant Screen Recording permission |
-| Shortcut not registering | May conflict with OS shortcut — close other apps |
-
-```bash
-npm run doctor
-```
+| Shortcut not registering | May conflict with another app — close conflicting apps |
+| Codex "Not inside a trusted directory" | Handled automatically via `--skip-git-repo-check` |
 
 ## Tech Stack
 
