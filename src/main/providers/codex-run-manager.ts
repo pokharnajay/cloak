@@ -2,7 +2,7 @@ import { spawn, ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
 import { homedir } from 'os'
 import { log as _log } from '../logger'
-import { getCliEnv, findCodexBinary, prependBinDir, cancelProcess } from '../platform'
+import { IS_WIN, getCliEnv, findCodexBinary, prependBinDir, cancelProcess } from '../platform'
 import type { NormalizedEvent, RunOptions, EnrichedError } from '../../shared/types'
 
 const MAX_RING_LINES = 100
@@ -163,6 +163,7 @@ export class CodexRunManager extends EventEmitter {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd,
       env: this._getEnv(),
+      shell: IS_WIN,
     })
 
     log(`Spawned PID: ${child.pid}`)
