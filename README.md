@@ -8,49 +8,56 @@
   <img src="https://img.shields.io/github/license/pokharnajay/cloak?style=flat-square&color=2CB1BC" alt="License"/>
 </p>
 
-An invisible, floating desktop overlay for **Claude Code** on macOS and Windows. Always-on-top, stealth-mode interface with multi-tab sessions, keyboard-driven permissions, screenshots, configurable shortcuts, and a skills marketplace.
+An invisible, floating desktop overlay for **Claude Code** and **OpenAI Codex** on macOS. Always-on-top, stealth-mode interface with multi-tab sessions, keyboard-driven permissions, screenshots, and dual AI provider support.
 
-## Download
+## Install (macOS)
 
-| Platform | Download |
-|----------|----------|
-| macOS (Apple Silicon) | [Cloak.dmg](https://github.com/pokharnajay/cloak/releases/latest) |
+**One-line install** (recommended):
+
+```bash
+curl -sL https://raw.githubusercontent.com/pokharnajay/cloak/main/install.sh | bash
+```
+
+This downloads the latest release, installs to `/Applications`, and handles all macOS security flags automatically.
+
+<details>
+<summary>Manual install (DMG)</summary>
+
+1. Download [Cloak.dmg](https://github.com/pokharnajay/cloak/releases/latest)
+2. Open the DMG, drag **Cloak** to Applications
+3. Open Terminal and run: `xattr -cr /Applications/Cloak.app && codesign --force --deep --sign - /Applications/Cloak.app`
+4. Launch Cloak from Applications
+5. Grant Accessibility, Screen Recording & Microphone permissions when prompted
+
+</details>
+
+| Platform | Status |
+|----------|--------|
+| macOS (Apple Silicon) | Available |
 | Windows | Coming soon |
-
-> **macOS install:**
-> 1. Open the DMG, drag **Cloak** to Applications
-> 2. Open Terminal and run: `xattr -cr /Applications/Cloak.app`
-> 3. Launch Cloak from Applications
-> 4. Grant Accessibility, Screen Recording & Microphone permissions when prompted
 
 ## Features
 
-- **Multi-tab Claude sessions** — each tab runs `claude -p` with live streaming, tool calls, and permission approval
+- **Dual AI providers** — Claude Code and OpenAI Codex with isolated conversations
+- **Multi-tab sessions** — each tab runs its own Claude/Codex session with live streaming
 - **Keyboard permission handling** — Enter to approve, Esc to deny, number keys for options
-- **Screenshot + Ask** — single hotkey captures your screen and asks Claude (Option+Shift+S / Ctrl+Shift+S)
-- **Configurable keyboard shortcuts** — edit all hotkeys from Settings
-- **Voice input** — local speech-to-text via Whisper (macOS)
+- **Screenshot + Ask** — single hotkey captures your screen and sends to AI (Option+Shift+S)
+- **Stealth mode** — completely invisible in screen shares (no tray icon, no dialogs, no notifications)
 - **File attachments** — drag & drop, file picker, clipboard paste
-- **Session history** — browse and resume past conversations
-- **Model switching** — Opus 4.6, Sonnet 4.6, Haiku 4.5
-- **Permission modes** — Ask (manual) or Auto (approve all)
-- **Skills marketplace** — install community skills and plugins
-- **Stealth mode** — completely invisible in screen shares, notifications suppressed
+- **Session history** — browse and resume past Claude conversations
+- **Model switching** — Opus 4.6, Sonnet 4.6, Haiku 4.5 (Claude); config.toml models (Codex)
+- **Permission modes** — Ask, Auto, or Plan
 - **Dark / Light theme** — smooth animated transitions
 - **Always on top** — floats on all workspaces and fullscreen apps
-- **Cross-platform** — macOS and Windows
 
 ## Keyboard Shortcuts
 
 | Action | macOS | Windows |
 |--------|-------|---------|
 | Toggle overlay | Option + Space | Ctrl + Space |
-| Toggle (secondary) | Cmd + Shift + K | Ctrl + Shift + K |
 | Screenshot + Ask | Option + Shift + S | Ctrl + Shift + S |
 | Approve permission | Enter | Enter |
 | Deny permission | Esc | Esc |
-
-All shortcuts are configurable from **Settings > Keyboard shortcuts**.
 
 ## Setup from Source
 
@@ -100,20 +107,21 @@ brew install whisper-cli
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Full width | Off | Expand overlay to full width |
-| Visible in screen sharing | Off | Show/hide from screen capture |
-| Notification sound | Off | Sound when task completes while hidden |
+| AI Provider | Claude | Switch between Claude Code and Codex |
+| Stealth mode | On | Invisible in screen shares |
 | Dark theme | On | Toggle dark/light mode |
-| Keyboard shortcuts | — | Edit all global hotkeys |
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
+| "Move to Trash" on first open | Use the one-line installer, or run: `xattr -cr /Applications/Cloak.app && codesign --force --deep --sign - /Applications/Cloak.app` |
 | App won't open (macOS) | System Settings > Privacy & Security > Open Anyway |
 | `npm install` fails | `xcode-select --install` and `pip install setuptools` |
 | `claude` not found | `npm i -g @anthropic-ai/claude-code` |
+| `codex` not found | `npm i -g @openai/codex` |
 | Screenshots black/empty | Grant Screen Recording permission |
-| Shortcut not registering | May be reserved by OS — try a different combo |
+| Shortcut not registering | May conflict with OS shortcut — close other apps |
 
 ```bash
 npm run doctor
