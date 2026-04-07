@@ -4,7 +4,7 @@ import { homedir } from 'os'
 import { appendFileSync } from 'fs'
 import { join } from 'path'
 import { StreamParser } from './stream-parser'
-import { getCliEnv, findClaudeBinary, prependBinDir, cancelProcess } from './platform'
+import { IS_WIN, getCliEnv, findClaudeBinary, prependBinDir, cancelProcess } from './platform'
 import type { ClaudeEvent, RunOptions } from '../shared/types'
 
 const LOG_FILE = join(homedir(), '.clui-debug.log')
@@ -79,6 +79,7 @@ export class ProcessManager extends EventEmitter {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd,
       env,
+      shell: IS_WIN,
     })
 
     log(`Spawned PID: ${child.pid}`)

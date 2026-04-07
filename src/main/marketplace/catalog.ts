@@ -6,6 +6,7 @@ import { homedir } from 'os'
 import type { CatalogPlugin } from '../../shared/types'
 import { log as _log } from '../logger'
 import { getCliEnv } from '../cli-env'
+import { IS_WIN } from '../platform'
 
 function log(msg: string): void {
   _log('marketplace', msg)
@@ -393,7 +394,7 @@ function deriveSemanticTags(name: string, description: string, skillPath: string
 
 function execAsync(cmd: string, args: string[], timeout: number): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    execFile(cmd, args, { timeout, env: getCliEnv() }, (err, stdout, stderr) => {
+    execFile(cmd, args, { timeout, env: getCliEnv(), shell: IS_WIN as any }, (err, stdout, stderr) => {
       resolve({
         exitCode: err ? 1 : 0,
         stdout: stdout || '',
