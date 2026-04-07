@@ -8,33 +8,38 @@
   <img src="https://img.shields.io/github/license/pokharnajay/cloak?style=flat-square&color=2CB1BC" alt="License"/>
 </p>
 
-An invisible, floating desktop overlay for **Claude Code** and **OpenAI Codex** on macOS. Always-on-top, stealth-mode interface with multi-tab sessions, keyboard-driven permissions, screenshots, and dual AI provider support.
+An invisible, floating desktop overlay for **Claude Code** and **OpenAI Codex**. Always-on-top, stealth-mode interface with multi-tab sessions, keyboard-driven permissions, screenshots, and dual AI provider support.
 
-## Install (macOS)
+## Install
 
-**One-line install** (recommended):
+### macOS
+
+**Option 1 — Homebrew** (recommended):
+
+```bash
+brew install pokharnajay/cloak/cloak
+```
+
+**Option 2 — One-line script:**
 
 ```bash
 curl -sL https://raw.githubusercontent.com/pokharnajay/cloak/main/install.sh | bash
 ```
 
-This downloads the latest release, installs to `/Applications`, and handles all macOS security flags automatically.
+**Option 3 — DMG:**
 
-<details>
-<summary>Manual install (DMG)</summary>
-
-1. Download [Cloak.dmg](https://github.com/pokharnajay/cloak/releases/latest)
+1. Download [Cloak-0.2.0-arm64.dmg](https://github.com/pokharnajay/cloak/releases/latest)
 2. Open the DMG, drag **Cloak** to Applications
-3. Open Terminal and run: `xattr -cr /Applications/Cloak.app && codesign --force --deep --sign - /Applications/Cloak.app`
-4. Launch Cloak from Applications
-5. Grant Accessibility, Screen Recording & Microphone permissions when prompted
+3. If macOS blocks it, open Terminal and run: `xattr -cr /Applications/Cloak.app`
+4. Grant Accessibility & Screen Recording permissions when prompted
 
-</details>
+### Windows
 
-| Platform | Status |
-|----------|--------|
-| macOS (Apple Silicon) | Available |
-| Windows | Coming soon |
+Download and run the portable exe — no installation needed:
+
+| Download | Architecture |
+|----------|-------------|
+| [Cloak-0.2.0-windows-x64.exe](https://github.com/pokharnajay/cloak/releases/latest) | Windows x64 |
 
 ## Features
 
