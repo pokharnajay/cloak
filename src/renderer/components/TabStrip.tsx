@@ -1,10 +1,10 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X } from '@phosphor-icons/react'
+import { Plus, X, EyeSlash } from '@phosphor-icons/react'
 import { useSessionStore } from '../stores/sessionStore'
 import { HistoryPicker } from './HistoryPicker'
 import { SettingsPopover } from './SettingsPopover'
-import { useColors } from '../theme'
+import { useColors, useThemeStore } from '../theme'
 import type { TabStatus } from '../../shared/types'
 
 function StatusDot({ status, hasUnread, hasPermission }: { status: TabStatus; hasUnread: boolean; hasPermission: boolean }) {
@@ -33,6 +33,24 @@ function StatusDot({ status, hasUnread, hasPermission }: { status: TabStatus; ha
         ...(glow ? { boxShadow: `0 0 6px 2px ${colors.statusPermissionGlow}` } : {}),
       }}
     />
+  )
+}
+
+function StealthIndicator() {
+  const isStealth = !useThemeStore((s) => s.visibleInScreenShare)
+  const setVisibleInScreenShare = useThemeStore((s) => s.setVisibleInScreenShare)
+  const colors = useColors()
+  return (
+    <button
+      onClick={() => setVisibleInScreenShare(isStealth)}
+      className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-all cloak-clickable"
+      style={{
+        color: isStealth ? '#1DE9B6' : colors.textMuted,
+        filter: isStealth ? 'drop-shadow(0 0 4px rgba(29, 233, 182, 0.6)) drop-shadow(0 0 8px rgba(29, 233, 182, 0.3))' : 'none',
+      }}
+    >
+      <EyeSlash size={13} weight={isStealth ? 'fill' : 'regular'} />
+    </button>
   )
 }
 
@@ -129,6 +147,7 @@ export function TabStrip() {
           </>
         )}
 
+        <StealthIndicator />
         <SettingsPopover />
       </div>
     </div>

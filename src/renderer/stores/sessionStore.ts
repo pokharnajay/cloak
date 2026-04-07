@@ -209,6 +209,46 @@ export const useSessionStore = create<State>((set, get) => ({
   },
 
   setPreferredModel: (provider, modelId) => {
+    const prev = get()
+    const prevProvider = prev.preferredProvider || 'claude'
+
+    // If provider changed, stash current messages and restore the other provider's
+    if (provider !== prevProvider) {
+      const tab = prev.tabs.find((t) => t.id === prev.activeTabId)
+      if (tab) {
+        // Stash current messages under previous provider key
+        const stashKey = `_msgs_${prevProvider}`
+        const sessionKey = `_session_${prevProvider}`
+        const restoreKey = `_msgs_${provider}`
+        const restoreSessionKey = `_session_${provider}`
+
+        set((s) => ({
+          preferredProvider: provider,
+          preferredModel: modelId,
+          tabs: s.tabs.map((t) => {
+            if (t.id !== s.activeTabId) return t
+            return {
+              ...t,
+              // Stash current
+              [stashKey]: t.messages,
+              [sessionKey]: t.claudeSessionId,
+              // Restore other provider's messages (or empty)
+              messages: (t as any)[restoreKey] || [],
+              claudeSessionId: (t as any)[restoreSessionKey] || null,
+              status: 'idle' as const,
+              activeRequestId: null,
+              currentActivity: '',
+              permissionQueue: [],
+              permissionDenied: null,
+              lastResult: null,
+              title: (t as any)[restoreKey]?.length > 0 ? t.title : 'New Tab',
+            }
+          }),
+        }))
+        return
+      }
+    }
+
     set({ preferredProvider: provider, preferredModel: modelId })
   },
 

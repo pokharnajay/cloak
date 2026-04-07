@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { DotsThree, Bell, ArrowsOutSimple, Moon, EyeSlash, SignOut, Camera, Keyboard, ArrowsLeftRight } from '@phosphor-icons/react'
-import { ShortcutEditor } from './ShortcutEditor'
+import { DotsThree, ArrowsOutSimple, Moon, EyeSlash, SignOut, Keyboard, ArrowsLeftRight } from '@phosphor-icons/react'
 import { useThemeStore } from '../theme'
 import { useSessionStore, PROVIDERS } from '../stores/sessionStore'
 import type { ProviderId } from '../../shared/types'
@@ -46,17 +45,14 @@ function RowToggle({
 /* ─── Settings popover ─── */
 
 export function SettingsPopover() {
-  const soundEnabled = useThemeStore((s) => s.soundEnabled)
-  const setSoundEnabled = useThemeStore((s) => s.setSoundEnabled)
   const themeMode = useThemeStore((s) => s.themeMode)
   const setThemeMode = useThemeStore((s) => s.setThemeMode)
   const expandedUI = useThemeStore((s) => s.expandedUI)
   const setExpandedUI = useThemeStore((s) => s.setExpandedUI)
   const visibleInScreenShare = useThemeStore((s) => s.visibleInScreenShare)
   const setVisibleInScreenShare = useThemeStore((s) => s.setVisibleInScreenShare)
-  const screenshotMode = useThemeStore((s) => s.screenshotMode)
-  const setScreenshotMode = useThemeStore((s) => s.setScreenshotMode)
   const isExpanded = useSessionStore((s) => s.isExpanded)
+  const staticInfo = useSessionStore((s) => s.staticInfo)
   const popoverLayer = usePopoverLayer()
   const colors = useColors()
 
@@ -68,7 +64,6 @@ export function SettingsPopover() {
 
   const preferredProvider = useSessionStore((s) => s.preferredProvider)
   const setPreferredModel = useSessionStore((s) => s.setPreferredModel)
-  const [shortcutEditorOpen, setShortcutEditorOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
@@ -244,70 +239,6 @@ export function SettingsPopover() {
 
             <div style={{ height: 1, background: colors.popoverBorder }} />
 
-            {/* Notification sound */}
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Bell size={14} style={{ color: colors.textTertiary }} />
-                  <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
-                    Notification sound
-                  </div>
-                </div>
-                <RowToggle
-                  checked={soundEnabled}
-                  onChange={setSoundEnabled}
-                  colors={colors}
-                  label="Toggle notification sound"
-                />
-              </div>
-            </div>
-
-            <div style={{ height: 1, background: colors.popoverBorder }} />
-
-            {/* Screenshot mode — hidden for now, always fullscreen
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Camera size={14} style={{ color: colors.textTertiary }} />
-                <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
-                  Screenshot mode
-                </div>
-              </div>
-              <div className="flex gap-1.5 ml-5">
-                {([
-                  { value: 'fullscreen' as const, label: 'Full Screen' },
-                  { value: 'region' as const, label: 'Select Region' },
-                ] as const).map((opt) => {
-                  const isActive = screenshotMode === opt.value
-                  return (
-                    <button
-                      key={opt.value}
-                      onClick={() => setScreenshotMode(opt.value)}
-                      className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] transition-colors"
-                      style={{
-                        background: isActive ? colors.accent + '22' : 'transparent',
-                        color: isActive ? colors.accent : colors.textSecondary,
-                        border: `1px solid ${isActive ? colors.accent + '44' : colors.containerBorder}`,
-                        fontWeight: isActive ? 600 : 400,
-                      }}
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{
-                          border: `1.5px solid ${isActive ? colors.accent : colors.textMuted}`,
-                          background: isActive ? colors.accent : 'transparent',
-                          boxShadow: isActive ? `inset 0 0 0 2px ${colors.popoverBg}` : 'none',
-                        }}
-                      />
-                      {opt.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div style={{ height: 1, background: colors.popoverBorder }} />
-            */}
-
             {/* Theme */}
             <div>
               <div className="flex items-center justify-between gap-3">
@@ -328,17 +259,17 @@ export function SettingsPopover() {
 
             <div style={{ height: 1, background: colors.popoverBorder }} />
 
-            {/* Keyboard shortcuts */}
-            <div>
-              <button
-                onClick={() => { setShortcutEditorOpen(true); setOpen(false) }}
-                className="flex items-center gap-2 w-full text-left"
-              >
+            {/* Shortcut display */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
                 <Keyboard size={14} style={{ color: colors.textTertiary }} />
                 <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
-                  Keyboard shortcuts
+                  Toggle
                 </div>
-              </button>
+              </div>
+              <div className="text-[11px] font-mono" style={{ color: colors.textMuted }}>
+                {staticInfo?.platform === 'darwin' ? '⌥ Space' : 'Ctrl Space'}
+              </div>
             </div>
 
             <div style={{ height: 1, background: colors.popoverBorder }} />
@@ -360,7 +291,6 @@ export function SettingsPopover() {
         </>,
         popoverLayer,
       )}
-      <ShortcutEditor open={shortcutEditorOpen} onClose={() => setShortcutEditorOpen(false)} />
     </>
   )
 }

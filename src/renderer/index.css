@@ -211,12 +211,19 @@ input::placeholder {
   transition: transform 0.08s ease;
 }
 
-/* ─── Clickable elements use default cursor ─── */
-button, [role="button"], [onclick], a, .cursor-pointer {
+/* ─── Clickable elements use default cursor with subtle hover glow ─── */
+button, [role="button"], [onclick], a, .cursor-pointer, .cloak-clickable {
   cursor: default;
+  transition: background 0.15s ease;
+}
+button:hover:not(:disabled), [role="button"]:hover, a:hover, .cloak-clickable:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 button:disabled {
   cursor: default;
+}
+button:disabled:hover {
+  background: transparent;
 }
 
 /* ─── Drag region for frameless window ─── */
