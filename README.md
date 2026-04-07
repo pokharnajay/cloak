@@ -17,7 +17,7 @@ An invisible, floating desktop overlay for **Claude Code** and **OpenAI Codex**.
 **Option 1 — Homebrew** (recommended):
 
 ```bash
-brew install pokharnajay/cloak/cloak
+brew install pokharnajay/cloak
 ```
 
 **Option 2 — One-line script:**
