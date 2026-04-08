@@ -198,15 +198,23 @@ export function SettingsPopover() {
                 <div className="flex gap-1">
                   {(Object.keys(PROVIDERS) as ProviderId[]).map((id) => {
                     const isActive = (preferredProvider || 'claude') === id
+                    const providerAuth = useSessionStore.getState().providerAuth
+                    const isLocked = providerAuth ? !providerAuth[id] : false
                     return (
                       <button
                         key={id}
-                        onClick={() => setPreferredModel(id, PROVIDERS[id].models[0].modelId)}
+                        onClick={() => {
+                          if (isLocked) return
+                          setPreferredModel(id, PROVIDERS[id].models[0].modelId)
+                        }}
                         className="text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors"
+                        title={isLocked ? `${PROVIDERS[id].label} is not authenticated. Run "${id === 'claude' ? 'claude' : 'codex'}" in your terminal.` : ''}
                         style={{
                           background: isActive ? colors.accent + '22' : 'transparent',
-                          color: isActive ? colors.accent : colors.textMuted,
+                          color: isLocked ? colors.textMuted + '66' : isActive ? colors.accent : colors.textMuted,
                           border: `1px solid ${isActive ? colors.accent + '44' : colors.containerBorder}`,
+                          opacity: isLocked ? 0.4 : 1,
+                          cursor: 'default',
                         }}
                       >
                         {PROVIDERS[id].label}

@@ -6,6 +6,7 @@ import { ConversationView } from './components/ConversationView'
 import { InputBar } from './components/InputBar'
 import { StatusBar } from './components/StatusBar'
 import { MarketplacePanel } from './components/MarketplacePanel'
+import { SetupOverlay } from './components/SetupOverlay'
 import { PopoverLayerProvider } from './components/PopoverLayer'
 import { useClaudeEvents } from './hooks/useClaudeEvents'
 import { useHealthReconciliation } from './hooks/useHealthReconciliation'
@@ -52,6 +53,8 @@ export default function App() {
           }))
         }).catch(() => {})
       }
+      // Check provider auth status on launch
+      useSessionStore.getState().checkAndSetProviderAuth()
     })
   }, [])
 
@@ -429,6 +432,7 @@ export default function App() {
           </motion.div>
         </div>
       </div>
+      <SetupOverlay />
     </PopoverLayerProvider>
   )
 }

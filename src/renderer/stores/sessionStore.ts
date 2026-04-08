@@ -66,6 +66,10 @@ interface State {
   preferredProvider: ProviderId | null
   /** Global permission mode: 'ask' shows cards, 'auto' = full auto, 'plan' = read-only */
   permissionMode: 'ask' | 'auto' | 'plan'
+  /** Auth status per provider — null until checked */
+  providerAuth: { claude: boolean; codex: boolean } | null
+  /** Whether setup overlay is visible */
+  showSetupOverlay: boolean
 
   // Marketplace state
   marketplaceOpen: boolean
@@ -79,6 +83,8 @@ interface State {
 
   // Actions
   initStaticInfo: () => Promise<void>
+  checkAndSetProviderAuth: () => Promise<void>
+  setShowSetupOverlay: (show: boolean) => void
   setPreferredModel: (provider: ProviderId, modelId: string) => void
   setPermissionMode: (mode: 'ask' | 'auto' | 'plan') => void
   installCodex: () => Promise<void>
@@ -181,6 +187,8 @@ export const useSessionStore = create<State>((set, get) => ({
   preferredModel: null,
   preferredProvider: null,
   permissionMode: 'ask',
+  providerAuth: null,
+  showSetupOverlay: false,
 
   // Marketplace
   marketplaceOpen: false,
@@ -208,9 +216,44 @@ export const useSessionStore = create<State>((set, get) => ({
     } catch {}
   },
 
+  checkAndSetProviderAuth: async () => {
+    try {
+      const result = await window.clui.checkProviders()
+      const auth = {
+        claude: result.claude.authenticated,
+        codex: result.codex.authenticated,
+      }
+      const neitherAuthed = !auth.claude && !auth.codex
+
+      // Auto-select the authenticated provider
+      const prev = get()
+      let provider = prev.preferredProvider || 'claude'
+      if (!auth.claude && auth.codex) {
+        provider = 'codex'
+      } else if (auth.claude && !auth.codex) {
+        provider = 'claude'
+      }
+
+      set({
+        providerAuth: auth,
+        showSetupOverlay: neitherAuthed,
+        preferredProvider: provider,
+      })
+    } catch {
+      set({ providerAuth: { claude: false, codex: false }, showSetupOverlay: true })
+    }
+  },
+
+  setShowSetupOverlay: (show) => set({ showSetupOverlay: show }),
+
   setPreferredModel: (provider, modelId) => {
     const prev = get()
     const prevProvider = prev.preferredProvider || 'claude'
+
+    // Block switching to unauthenticated provider
+    if (prev.providerAuth && !prev.providerAuth[provider]) {
+      return
+    }
 
     // If provider changed, stash current messages and restore the other provider's
     if (provider !== prevProvider) {

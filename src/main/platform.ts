@@ -256,12 +256,22 @@ export async function installCodexCli(
 /**
  * Check which AI providers have their CLI binary available.
  */
-export function checkProviders(): { claude: { available: boolean; binary: string | null }; codex: { available: boolean; binary: string | null } } {
+export function checkProviders(): {
+  claude: { available: boolean; authenticated: boolean; binary: string | null };
+  codex: { available: boolean; authenticated: boolean; binary: string | null };
+} {
   const claudeBin = findClaudeBinary()
   const codexBin = findCodexBinary()
+
+  // Claude auth: ~/.claude/.credentials.json exists
+  const claudeAuth = existsSync(join(homedir(), '.claude', '.credentials.json'))
+
+  // Codex auth: ~/.codex/auth.json exists OR OPENAI_API_KEY env var set
+  const codexAuth = !!process.env.OPENAI_API_KEY || existsSync(join(homedir(), '.codex', 'auth.json'))
+
   return {
-    claude: { available: !!claudeBin, binary: claudeBin },
-    codex: { available: !!codexBin, binary: codexBin },
+    claude: { available: !!claudeBin, authenticated: claudeAuth, binary: claudeBin },
+    codex: { available: !!codexBin, authenticated: codexAuth, binary: codexBin },
   }
 }
 

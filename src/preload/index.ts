@@ -31,7 +31,7 @@ export interface CluiAPI {
   installPlugin(repo: string, pluginName: string, marketplace: string, sourcePath?: string, isSkillMd?: boolean): Promise<{ ok: boolean; error?: string }>
   uninstallPlugin(pluginName: string): Promise<{ ok: boolean; error?: string }>
   setPermissionMode(mode: string): void
-  checkProviders(): Promise<{ claude: { available: boolean; binary: string | null }; codex: { available: boolean; binary: string | null } }>
+  checkProviders(): Promise<{ claude: { available: boolean; authenticated: boolean; binary: string | null }; codex: { available: boolean; authenticated: boolean; binary: string | null } }>
   installCodex(): Promise<{ ok: boolean; error?: string }>
   onProviderToast(callback: (toast: ProviderToast) => void): () => void
   getTheme(): Promise<{ isDark: boolean }>
