@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
 import { homedir } from 'os'
+import { existsSync } from 'fs'
 import { StreamParser } from '../stream-parser'
 import { normalize } from './event-normalizer'
 import { log as _log } from '../logger'
@@ -110,6 +111,46 @@ export class RunManager extends EventEmitter {
   startRun(requestId: string, options: RunOptions): RunHandle {
     const cwd = options.projectPath === '~' ? homedir() : options.projectPath
 
+    // Pre-flight: check binary exists
+    const handle: RunHandle = {
+      runId: requestId,
+      sessionId: options.sessionId || null,
+      process: null as unknown as ChildProcess,
+      pid: null,
+      startedAt: Date.now(),
+      stderrTail: [],
+      stdoutTail: [],
+      toolCallCount: 0,
+      sawPermissionRequest: false,
+      permissionDenials: [],
+    }
+    if (!this.claudeBinary || this.claudeBinary === 'claude') {
+      // Re-check in case it was installed after app launch
+      this.claudeBinary = findClaudeBinary()
+    }
+    try {
+      if (!existsSync(this.claudeBinary) && this.claudeBinary !== 'claude') {
+        throw new Error('not found')
+      }
+    } catch {
+      // Binary path doesn't exist — check if bare 'claude' is resolvable
+      if (this.claudeBinary === 'claude') {
+        // Will likely fail at spawn, but let's give a clear error first
+        log(`Claude binary not found [${requestId}]`)
+        this.activeRuns.set(requestId, handle)
+        setImmediate(() => {
+          const evt: NormalizedEvent = {
+            type: 'error',
+            message: 'Claude Code CLI is not installed.\n\nInstall it with:\n  npm install -g @anthropic-ai/claude-code\n\nThen run: claude',
+            isError: true,
+          }
+          this.emit('normalized', requestId, evt)
+          this.emit('exit', requestId, 1, null, null)
+        })
+        return handle
+      }
+    }
+
     const args: string[] = [
       '-p',
       '--input-format', 'stream-json',
@@ -186,18 +227,8 @@ export class RunManager extends EventEmitter {
 
     log(`Spawned PID: ${child.pid}`)
 
-    const handle: RunHandle = {
-      runId: requestId,
-      sessionId: options.sessionId || null,
-      process: child,
-      pid: child.pid || null,
-      startedAt: Date.now(),
-      stderrTail: [],
-      stdoutTail: [],
-      toolCallCount: 0,
-      sawPermissionRequest: false,
-      permissionDenials: [],
-    }
+    handle.process = child
+    handle.pid = child.pid || null
 
     // ─── stdout → NDJSON parser → normalizer → events ───
     const parser = StreamParser.fromStream(child.stdout!)
