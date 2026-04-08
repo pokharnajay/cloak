@@ -14,6 +14,26 @@ import type { RunOptions, NormalizedEvent, EnrichedError } from '../shared/types
 
 if (IS_WIN && app && app.disableHardwareAcceleration) { app.disableHardwareAcceleration() }
 
+// ─── Global error safety net ───
+process.on('uncaughtException', (err) => {
+  _log('main', `UNCAUGHT EXCEPTION: ${err.message}\n${err.stack}`)
+  // Show in-app if window exists, never crash silently
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('clui:provider-toast', { type: 'error', message: `Unexpected error: ${err.message}` })
+    }
+  } catch {}
+})
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason)
+  _log('main', `UNHANDLED REJECTION: ${msg}`)
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('clui:provider-toast', { type: 'error', message: `Async error: ${msg}` })
+    }
+  } catch {}
+})
+
 const DEBUG_MODE = process.env.CLUI_DEBUG === '1'
 const SPACES_DEBUG = DEBUG_MODE || process.env.CLUI_SPACES_DEBUG === '1'
 
@@ -978,22 +998,42 @@ ipcMain.on('clui:notify', (_event, { title, body, urgency }: { title: string; bo
 
 ipcMain.handle(IPC.MARKETPLACE_FETCH, async (_event, { forceRefresh } = {}) => {
   log('IPC MARKETPLACE_FETCH')
-  return fetchCatalog(forceRefresh)
+  try {
+    return await fetchCatalog(forceRefresh)
+  } catch (err: any) {
+    log(`MARKETPLACE_FETCH error: ${err.message}`)
+    return { plugins: [], error: 'Failed to load marketplace. Check your internet connection.' }
+  }
 })
 
 ipcMain.handle(IPC.MARKETPLACE_INSTALLED, async () => {
   log('IPC MARKETPLACE_INSTALLED')
-  return listInstalled()
+  try {
+    return await listInstalled()
+  } catch (err: any) {
+    log(`MARKETPLACE_INSTALLED error: ${err.message}`)
+    return []
+  }
 })
 
 ipcMain.handle(IPC.MARKETPLACE_INSTALL, async (_event, { repo, pluginName, marketplace, sourcePath, isSkillMd }: { repo: string; pluginName: string; marketplace: string; sourcePath?: string; isSkillMd?: boolean }) => {
   log(`IPC MARKETPLACE_INSTALL: ${pluginName} from ${repo} (isSkillMd=${isSkillMd})`)
-  return installPlugin(repo, pluginName, marketplace, sourcePath, isSkillMd)
+  try {
+    return await installPlugin(repo, pluginName, marketplace, sourcePath, isSkillMd)
+  } catch (err: any) {
+    log(`MARKETPLACE_INSTALL error: ${err.message}`)
+    return { ok: false, error: `Install failed: ${err.message}` }
+  }
 })
 
 ipcMain.handle(IPC.MARKETPLACE_UNINSTALL, async (_event, { pluginName }: { pluginName: string }) => {
   log(`IPC MARKETPLACE_UNINSTALL: ${pluginName}`)
-  return uninstallPlugin(pluginName)
+  try {
+    return await uninstallPlugin(pluginName)
+  } catch (err: any) {
+    log(`MARKETPLACE_UNINSTALL error: ${err.message}`)
+    return { ok: false, error: `Uninstall failed: ${err.message}` }
+  }
 })
 
 // ─── Theme Detection ───
@@ -1101,19 +1141,23 @@ async function handleScreenshotAsk(): Promise<void> {
   if (IS_MAC) {
     const screenStatus = systemPreferences.getMediaAccessStatus('screen')
     if (screenStatus !== 'granted') {
-      showWindow('screenshot-ask permission')
-      dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        title: 'Screen Recording Permission Required',
-        message: 'Cloak needs Screen Recording permission to take screenshots.',
-        detail: 'Click "Open Settings" to grant permission, then try again.',
-        buttons: ['Open Settings', 'Cancel'],
-        defaultId: 0,
-      }).then(({ response }) => {
-        if (response === 0) {
-          shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
-        }
-      })
+      if (contentProtectionEnabled) {
+        broadcast('clui:stealth-blocked', 'Screenshots need Screen Recording permission. Grant it in System Settings > Privacy & Security > Screen Recording.')
+      } else {
+        showWindow('screenshot-ask permission')
+        dialog.showMessageBox(mainWindow, {
+          type: 'warning',
+          title: 'Screen Recording Permission Required',
+          message: 'Cloak needs Screen Recording permission to take screenshots.',
+          detail: 'Click "Open Settings" to grant permission, then try again.',
+          buttons: ['Open Settings', 'Cancel'],
+          defaultId: 0,
+        }).then(({ response }) => {
+          if (response === 0) {
+            shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+          }
+        })
+      }
       return
     }
   }

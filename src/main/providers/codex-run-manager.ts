@@ -388,8 +388,29 @@ export class CodexRunManager extends EventEmitter {
 
   getEnrichedError(requestId: string, exitCode: number | null): EnrichedError {
     const handle = this.activeRuns.get(requestId) || this._finishedRuns.get(requestId)
+    const stderrJoined = (handle?.stderrTail || []).join('\n').toLowerCase()
+
+    let message = `Codex run failed with exit code ${exitCode}`
+    if (stderrJoined.includes('invalid api key') || stderrJoined.includes('incorrect api key') || stderrJoined.includes('authentication')) {
+      message = 'OpenAI API key is invalid or expired. Run "codex" in your terminal to re-authenticate, or set OPENAI_API_KEY.'
+    } else if (stderrJoined.includes('not authenticated') || stderrJoined.includes('please login') || stderrJoined.includes('log in')) {
+      message = 'Not logged in to Codex. Run "codex" in your terminal to authenticate.'
+    } else if (stderrJoined.includes('rate limit') || stderrJoined.includes('too many requests') || stderrJoined.includes('429')) {
+      message = 'Rate limited — too many requests. Wait a moment and try again.'
+    } else if (stderrJoined.includes('network') || stderrJoined.includes('enotfound') || stderrJoined.includes('econnrefused') || stderrJoined.includes('fetch failed') || stderrJoined.includes('socket hang up')) {
+      message = 'Network error — check your internet connection and try again.'
+    } else if (stderrJoined.includes('timeout') || stderrJoined.includes('etimedout')) {
+      message = 'Request timed out. Check your connection and try again.'
+    } else if (stderrJoined.includes('overloaded') || stderrJoined.includes('service unavailable')) {
+      message = 'OpenAI API is temporarily overloaded. Try again in a few seconds.'
+    } else if (stderrJoined.includes('spawn') && stderrJoined.includes('enoent')) {
+      message = 'Codex CLI not found. Install with: npm install -g @openai/codex'
+    } else if (exitCode === null) {
+      message = 'Codex process was terminated unexpectedly.'
+    }
+
     return {
-      message: `Codex run failed with exit code ${exitCode}`,
+      message,
       stderrTail: handle?.stderrTail.slice(-20) || [],
       stdoutTail: handle?.stdoutTail.slice(-20) || [],
       exitCode,

@@ -378,8 +378,34 @@ export class RunManager extends EventEmitter {
    */
   getEnrichedError(requestId: string, exitCode: number | null): EnrichedError {
     const handle = this.activeRuns.get(requestId) || this._finishedRuns.get(requestId)
+    const stderrJoined = (handle?.stderrTail || []).join('\n').toLowerCase()
+
+    // Detect common error patterns and provide friendly messages
+    let message = `Run failed with exit code ${exitCode}`
+    if (stderrJoined.includes('invalid api key') || stderrJoined.includes('invalid x-api-key') || stderrJoined.includes('authentication')) {
+      message = 'API key is invalid or expired. Run "claude" in your terminal to re-authenticate.'
+    } else if (stderrJoined.includes('not authenticated') || stderrJoined.includes('please login') || stderrJoined.includes('log in')) {
+      message = 'Not logged in. Run "claude" in your terminal to authenticate.'
+    } else if (stderrJoined.includes('rate limit') || stderrJoined.includes('too many requests') || stderrJoined.includes('429')) {
+      message = 'Rate limited — too many requests. Wait a moment and try again.'
+    } else if (stderrJoined.includes('network') || stderrJoined.includes('enotfound') || stderrJoined.includes('econnrefused') || stderrJoined.includes('fetch failed') || stderrJoined.includes('socket hang up')) {
+      message = 'Network error — check your internet connection and try again.'
+    } else if (stderrJoined.includes('timeout') || stderrJoined.includes('etimedout')) {
+      message = 'Request timed out. Check your connection and try again.'
+    } else if (stderrJoined.includes('overloaded') || stderrJoined.includes('529') || stderrJoined.includes('service unavailable')) {
+      message = 'API is temporarily overloaded. Try again in a few seconds.'
+    } else if (stderrJoined.includes('permission denied') || stderrJoined.includes('eacces')) {
+      message = 'Permission denied. Check file/folder permissions.'
+    } else if (stderrJoined.includes('enospc') || stderrJoined.includes('no space')) {
+      message = 'Disk is full. Free up space and try again.'
+    } else if (stderrJoined.includes('spawn') && stderrJoined.includes('enoent')) {
+      message = 'Claude Code CLI not found. Install with: npm install -g @anthropic-ai/claude-code'
+    } else if (exitCode === null) {
+      message = 'Process was terminated unexpectedly.'
+    }
+
     return {
-      message: `Run failed with exit code ${exitCode}`,
+      message,
       stderrTail: handle?.stderrTail.slice(-20) || [],
       stdoutTail: handle?.stdoutTail.slice(-20) || [],
       exitCode,
