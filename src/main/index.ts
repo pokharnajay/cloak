@@ -676,31 +676,6 @@ ipcMain.handle(IPC.TAKE_SCREENSHOT, async (_event, screenshotMode: string = 'reg
   const { join } = require('path')
   const { writeFileSync, readFileSync } = require('fs')
 
-  // Check Screen Recording permission on macOS before hiding the window
-  if (IS_MAC) {
-    const screenStatus = systemPreferences.getMediaAccessStatus('screen')
-    log(`Screenshot: screen recording status = ${screenStatus}`)
-    if (screenStatus !== 'granted') {
-      // In stealth mode, don't show OS dialogs — just notify via renderer
-      if (contentProtectionEnabled) {
-        broadcast('clui:stealth-blocked', 'Screenshots need Screen Recording permission. Disable stealth mode first, then grant permission.')
-        return null
-      }
-      const { response } = await dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        title: 'Screen Recording Permission Required',
-        message: 'Cloak needs Screen Recording permission to take screenshots.',
-        detail: 'Click "Open Settings" to grant permission, then try again.',
-        buttons: ['Open Settings', 'Cancel'],
-        defaultId: 0,
-      })
-      if (response === 0) {
-        shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
-      }
-      return null
-    }
-  }
-
   // Hide overlay instantly
   mainWindow.hide()
   await new Promise((r) => setTimeout(r, 150))
@@ -716,7 +691,25 @@ ipcMain.handle(IPC.TAKE_SCREENSHOT, async (_event, screenshotMode: string = 'reg
       types: ['screen'],
       thumbnailSize: { width: Math.round(width * scaleFactor), height: Math.round(height * scaleFactor) },
     })
-    if (!sources || sources.length === 0) return null
+    if (!sources || sources.length === 0) {
+      // Permission denied — desktopCapturer returns empty when Screen Recording is not granted.
+      // macOS has now added Cloak to the TCC list; prompt user to enable it.
+      if (contentProtectionEnabled) {
+        broadcast('clui:stealth-blocked', 'Screenshots need Screen Recording permission. Enable Cloak in System Settings > Privacy & Security > Screen Recording.')
+      } else {
+        dialog.showMessageBox(mainWindow, {
+          type: 'warning',
+          title: 'Screen Recording Permission Required',
+          message: 'Cloak needs Screen Recording permission to take screenshots.',
+          detail: 'Enable Cloak in System Settings > Privacy & Security > Screen Recording, then try again.',
+          buttons: ['Open Settings', 'Cancel'],
+          defaultId: 0,
+        }).then(({ response }) => {
+          if (response === 0) shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+        })
+      }
+      return null
+    }
 
     const source = sources.find((s) => s.display_id === String(display.id)) || sources[0]
     const fullImage = source.thumbnail
@@ -1137,31 +1130,6 @@ function registerAllShortcuts(): Record<string, boolean> {
 async function handleScreenshotAsk(): Promise<void> {
   if (!mainWindow) return
 
-  // Check Screen Recording permission on macOS
-  if (IS_MAC) {
-    const screenStatus = systemPreferences.getMediaAccessStatus('screen')
-    if (screenStatus !== 'granted') {
-      if (contentProtectionEnabled) {
-        broadcast('clui:stealth-blocked', 'Screenshots need Screen Recording permission. Grant it in System Settings > Privacy & Security > Screen Recording.')
-      } else {
-        showWindow('screenshot-ask permission')
-        dialog.showMessageBox(mainWindow, {
-          type: 'warning',
-          title: 'Screen Recording Permission Required',
-          message: 'Cloak needs Screen Recording permission to take screenshots.',
-          detail: 'Click "Open Settings" to grant permission, then try again.',
-          buttons: ['Open Settings', 'Cancel'],
-          defaultId: 0,
-        }).then(({ response }) => {
-          if (response === 0) {
-            shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
-          }
-        })
-      }
-      return
-    }
-  }
-
   // Hide overlay, capture full screen, show overlay with screenshot attached
   mainWindow.hide()
   await new Promise((r) => setTimeout(r, 150))
@@ -1174,7 +1142,25 @@ async function handleScreenshotAsk(): Promise<void> {
       types: ['screen'],
       thumbnailSize: { width: Math.round(display.size.width * scaleFactor), height: Math.round(display.size.height * scaleFactor) },
     })
-    if (!sources || sources.length === 0) { showWindow('screenshot-ask fallback'); return }
+    if (!sources || sources.length === 0) {
+      // Permission denied — macOS has now added Cloak to TCC list; prompt user to enable it.
+      showWindow('screenshot-ask fallback')
+      if (contentProtectionEnabled) {
+        broadcast('clui:stealth-blocked', 'Screenshots need Screen Recording permission. Enable Cloak in System Settings > Privacy & Security > Screen Recording.')
+      } else {
+        dialog.showMessageBox(mainWindow, {
+          type: 'warning',
+          title: 'Screen Recording Permission Required',
+          message: 'Cloak needs Screen Recording permission to take screenshots.',
+          detail: 'Enable Cloak in System Settings > Privacy & Security > Screen Recording, then try again.',
+          buttons: ['Open Settings', 'Cancel'],
+          defaultId: 0,
+        }).then(({ response }) => {
+          if (response === 0) shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+        })
+      }
+      return
+    }
 
     const source = sources.find((s) => s.display_id === String(display.id)) || sources[0]
     const image = source.thumbnail
