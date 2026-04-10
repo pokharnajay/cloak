@@ -88,6 +88,7 @@ interface State {
   setPreferredModel: (provider: ProviderId, modelId: string) => void
   setPermissionMode: (mode: 'ask' | 'auto' | 'plan') => void
   installCodex: () => Promise<void>
+  installClaude: () => Promise<void>
   createTab: () => Promise<string>
   selectTab: (tabId: string) => void
   closeTab: (tabId: string) => void
@@ -298,6 +299,12 @@ export const useSessionStore = create<State>((set, get) => ({
   installCodex: async () => {
     try {
       await window.clui.installCodex()
+    } catch {}
+  },
+
+  installClaude: async () => {
+    try {
+      await window.clui.installClaude()
     } catch {}
   },
 

@@ -36,6 +36,8 @@ export interface CluiAPI {
   setPermissionMode(mode: string): void
   checkProviders(): Promise<{ claude: { available: boolean; authenticated: boolean; binary: string | null }; codex: { available: boolean; authenticated: boolean; binary: string | null } }>
   installCodex(): Promise<{ ok: boolean; error?: string }>
+  installClaude(): Promise<{ ok: boolean; error?: string }>
+  openAuthTerminal(command: string): Promise<boolean>
   onProviderToast(callback: (toast: ProviderToast) => void): () => void
   getTheme(): Promise<{ isDark: boolean }>
   onThemeChange(callback: (isDark: boolean) => void): () => void
@@ -101,6 +103,8 @@ const api: CluiAPI = {
   setPermissionMode: (mode) => ipcRenderer.send(IPC.SET_PERMISSION_MODE, mode),
   checkProviders: () => ipcRenderer.invoke(IPC.CHECK_PROVIDERS),
   installCodex: () => ipcRenderer.invoke(IPC.INSTALL_CODEX),
+  installClaude: () => ipcRenderer.invoke(IPC.INSTALL_CLAUDE),
+  openAuthTerminal: (command) => ipcRenderer.invoke(IPC.OPEN_AUTH_TERMINAL, command),
   onProviderToast: (callback) => {
     const handler = (_e: Electron.IpcRendererEvent, toast: ProviderToast) => callback(toast)
     ipcRenderer.on(IPC.PROVIDER_TOAST, handler)

@@ -383,6 +383,8 @@ export const IPC = {
   // Provider management
   CHECK_PROVIDERS: 'clui:check-providers',
   INSTALL_CODEX: 'clui:install-codex',
+  INSTALL_CLAUDE: 'clui:install-claude',
+  OPEN_AUTH_TERMINAL: 'clui:open-auth-terminal',
   PROVIDER_TOAST: 'clui:provider-toast',
 
   // Screen sharing

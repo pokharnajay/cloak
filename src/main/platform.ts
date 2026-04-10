@@ -227,6 +227,79 @@ export function findCodexBinary(): string | null {
 }
 
 /**
+ * Install the Anthropic Claude Code CLI globally via npm.
+ * Works on both macOS and Windows.
+ */
+export async function installClaudeCli(
+  log: (msg: string) => void,
+): Promise<{ ok: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    const npmBin = IS_WIN ? 'npm.cmd' : 'npm'
+    log(`Installing Claude Code CLI via: ${npmBin} install -g @anthropic-ai/claude-code`)
+    execFile(npmBin, ['install', '-g', '@anthropic-ai/claude-code'], {
+      env: getCliEnv(),
+      timeout: 180000,
+    }, (err, _stdout, stderr) => {
+      // Clear cache so next findClaudeBinary() re-discovers
+      cachedClaudeBinary = null
+      if (err) {
+        log(`Claude Code CLI install failed: ${err.message}`)
+        resolve({ ok: false, error: stderr?.trim() || err.message })
+      } else {
+        log('Claude Code CLI installed successfully')
+        resolve({ ok: true })
+      }
+    })
+  })
+}
+
+/**
+ * Open a terminal and run a specific auth command (e.g. "claude" or "codex").
+ * macOS: AppleScript → Terminal.app
+ * Windows: Windows Terminal (wt.exe) → cmd.exe fallback
+ */
+export function openAuthTerminal(command: string, log: (msg: string) => void): boolean {
+  if (IS_MAC) {
+    const script = `tell application "Terminal"\n  activate\n  do script "${command}"\nend tell`
+    try {
+      execFile('/usr/bin/osascript', ['-e', script], (err) => {
+        if (err) log(`Failed to open terminal: ${err.message}`)
+        else log(`Opened terminal for auth: ${command}`)
+      })
+      return true
+    } catch (err: unknown) {
+      log(`Failed to open terminal: ${err}`)
+      return false
+    }
+  }
+
+  if (IS_WIN) {
+    try {
+      const wtExists = (() => {
+        try { execSync('where wt', { stdio: 'ignore' }); return true } catch { return false }
+      })()
+      if (wtExists) {
+        execFile('wt', ['cmd', '/k', command], (err) => {
+          if (err) log(`Failed to open Windows Terminal: ${err.message}`)
+          else log(`Opened Windows Terminal for auth: ${command}`)
+        })
+      } else {
+        execFile('cmd', ['/c', 'start', 'cmd', '/k', command], (err) => {
+          if (err) log(`Failed to open cmd: ${err.message}`)
+          else log(`Opened cmd for auth: ${command}`)
+        })
+      }
+      return true
+    } catch (err: unknown) {
+      log(`Failed to open terminal: ${err}`)
+      return false
+    }
+  }
+
+  return false
+}
+
+/**
  * Install the OpenAI Codex CLI globally via npm.
  * Works on both macOS and Windows.
  */
