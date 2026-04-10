@@ -213,6 +213,14 @@ function createWindow(): void {
     // { forward: true } ensures mousemove events still reach the renderer
     // so it can toggle click-through off when cursor enters interactive UI.
     mainWindow?.setIgnoreMouseEvents(true, { forward: true })
+
+    // Pre-request Screen Recording permission now that a window is visible.
+    // desktopCapturer.getSources() is the only API that triggers macOS TCC registration.
+    // Must run with an active window — calling it before show() is unreliable.
+    if (IS_MAC) {
+      desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } })
+        .catch(() => {}) // silent — just registers the app in TCC list
+    }
   })
 
   // Block DevTools in production — prevents source inspection
