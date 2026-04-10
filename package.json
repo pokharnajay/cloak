@@ -2,7 +2,7 @@
   "name": "cloak",
   "version": "0.2.0",
   "description": "Cloak — Invisible overlay for Claude Code",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "repository": {
     "type": "git",
     "url": "https://github.com/pokharnajay/cloak.git"
@@ -15,10 +15,12 @@
   "scripts": {
     "dev": "node -e \"const e={...process.env};delete e.ELECTRON_RUN_AS_NODE;require('child_process').execSync('npx electron-vite dev',{stdio:'inherit',env:e})\"",
     "build": "electron-vite build",
+    "build:prod": "NODE_ENV=production VITE_BUILD_MODE=production electron-vite build",
     "preview": "electron-vite preview",
-    "dist": "electron-vite build --mode production && electron-builder --mac --dir",
-    "dist:dmg": "electron-vite build --mode production && electron-builder --mac dmg",
-    "dist:win": "electron-vite build --mode production && electron-builder --win --dir",
+    "compile-bytecode": "electron scripts/compile-bytecode.js",
+    "dist": "npm run build:prod && node scripts/compile-bytecode.js && electron-builder --mac --dir",
+    "dist:dmg": "npm run build:prod && node scripts/compile-bytecode.js && electron-builder --mac dmg",
+    "dist:win": "npm run build:prod && node scripts/compile-bytecode.js && electron-builder --win --dir",
     "doctor": "bash scripts/doctor.sh",
     "postinstall": "electron-builder install-app-deps && node -e \"if(process.platform==='darwin'){require('child_process').execSync('bash scripts/patch-dev-icon.sh',{stdio:'inherit'})}\""
   },
@@ -58,8 +60,16 @@
       "background": "resources/dmg-background.png",
       "iconSize": 80,
       "contents": [
-        { "x": 130, "y": 230 },
-        { "x": 410, "y": 230, "type": "link", "path": "/Applications" }
+        {
+          "x": 130,
+          "y": 230
+        },
+        {
+          "x": 410,
+          "y": 230,
+          "type": "link",
+          "path": "/Applications"
+        }
       ],
       "window": {
         "width": 540,
@@ -96,6 +106,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.0",
+    "bytenode": "^1.5.7",
     "electron": "^35.7.5",
     "electron-builder": "^26.8.1",
     "electron-vite": "^3.0.0",
@@ -103,7 +114,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.2.1",
+    "terser": "^5.46.1",
     "typescript": "^5.7.0",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vite-plugin-javascript-obfuscator": "^3.1.0"
   }
 }

@@ -37,6 +37,24 @@ process.on('unhandledRejection', (reason) => {
 const DEBUG_MODE = process.env.CLUI_DEBUG === '1'
 const SPACES_DEBUG = DEBUG_MODE || process.env.CLUI_SPACES_DEBUG === '1'
 
+// ─── Persistent settings ───
+
+const SETTINGS_PATH = join(homedir(), '.claude', 'clui-settings.json')
+
+function loadSettings(): Record<string, unknown> {
+  try {
+    if (existsSync(SETTINGS_PATH)) return JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'))
+  } catch {}
+  return {}
+}
+
+function saveSettings(partial: Record<string, unknown>): void {
+  try {
+    const current = loadSettings()
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ ...current, ...partial }, null, 2))
+  } catch {}
+}
+
 function log(msg: string): void {
   _log('main', msg)
 }
@@ -122,8 +140,12 @@ function createWindow(): void {
   const { width: screenWidth, height: screenHeight } = display.workAreaSize
   const { x: dx, y: dy } = display.workArea
 
-  const x = dx + Math.round((screenWidth - BAR_WIDTH) / 2)
-  const y = dy + screenHeight - PILL_HEIGHT - PILL_BOTTOM_MARGIN
+  // Restore saved position if valid, otherwise default to center-bottom
+  const saved = loadSettings()
+  const savedX = typeof saved.windowX === 'number' ? saved.windowX : null
+  const savedY = typeof saved.windowY === 'number' ? saved.windowY : null
+  const x = savedX ?? (dx + Math.round((screenWidth - BAR_WIDTH) / 2))
+  const y = savedY ?? (dy + screenHeight - PILL_HEIGHT - PILL_BOTTOM_MARGIN)
 
   mainWindow = new BrowserWindow({
     width: BAR_WIDTH,
@@ -162,6 +184,13 @@ function createWindow(): void {
   mainWindow.setContentProtection(true)
   // Exclude from window list so screen sharing tools don't show it as a selectable window
   if (IS_MAC) mainWindow.excludedFromShownWindowsMenu = true
+
+  // Persist window position when user drags it
+  mainWindow.on('moved', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    const [wx, wy] = mainWindow.getPosition()
+    saveSettings({ windowX: wx, windowY: wy })
+  })
 
   // Allow webview popup windows to open
   mainWindow.webContents.on('did-attach-webview', (_event, webviewContents) => {
@@ -226,12 +255,19 @@ function showWindow(source = 'unknown'): void {
   const display = screen.getDisplayNearestPoint(cursor)
   const { width: sw, height: sh } = display.workAreaSize
   const { x: dx, y: dy } = display.workArea
-  mainWindow.setBounds({
-    x: dx + Math.round((sw - BAR_WIDTH) / 2),
-    y: dy + sh - PILL_HEIGHT - PILL_BOTTOM_MARGIN,
-    width: BAR_WIDTH,
-    height: PILL_HEIGHT,
-  })
+
+  // Restore saved position if on the same display; otherwise center-bottom on cursor's display
+  const saved = loadSettings()
+  const savedX = typeof saved.windowX === 'number' ? saved.windowX : null
+  const savedY = typeof saved.windowY === 'number' ? saved.windowY : null
+  let targetX = dx + Math.round((sw - BAR_WIDTH) / 2)
+  let targetY = dy + sh - PILL_HEIGHT - PILL_BOTTOM_MARGIN
+  if (savedX != null && savedY != null) {
+    const savedDisplay = screen.getDisplayNearestPoint({ x: savedX, y: savedY })
+    if (savedDisplay.id === display.id) { targetX = savedX; targetY = savedY }
+  }
+
+  mainWindow.setBounds({ x: targetX, y: targetY, width: BAR_WIDTH, height: PILL_HEIGHT })
 
   // Always re-assert space membership and top-level position (macOS only)
   if (IS_MAC) {
