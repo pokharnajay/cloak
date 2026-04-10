@@ -38,6 +38,10 @@ export interface CluiAPI {
   installCodex(): Promise<{ ok: boolean; error?: string }>
   installClaude(): Promise<{ ok: boolean; error?: string }>
   openAuthTerminal(command: string): Promise<boolean>
+  /** Spawn `claude auth login`, detect OAuth URL and open it in the system browser. Resolves when login completes. */
+  authClaudeWithBrowser(): Promise<{ ok: boolean; error?: string }>
+  /** Store an OpenAI API key for Codex; persisted to settings and injected into all Codex subprocesses. */
+  authCodexWithApiKey(apiKey: string): Promise<{ ok: boolean; error?: string }>
   onProviderToast(callback: (toast: ProviderToast) => void): () => void
   getTheme(): Promise<{ isDark: boolean }>
   onThemeChange(callback: (isDark: boolean) => void): () => void
@@ -105,6 +109,8 @@ const api: CluiAPI = {
   installCodex: () => ipcRenderer.invoke(IPC.INSTALL_CODEX),
   installClaude: () => ipcRenderer.invoke(IPC.INSTALL_CLAUDE),
   openAuthTerminal: (command) => ipcRenderer.invoke(IPC.OPEN_AUTH_TERMINAL, command),
+  authClaudeWithBrowser: () => ipcRenderer.invoke(IPC.AUTH_CLAUDE_BROWSER),
+  authCodexWithApiKey: (apiKey) => ipcRenderer.invoke(IPC.AUTH_CODEX_KEY, apiKey),
   onProviderToast: (callback) => {
     const handler = (_e: Electron.IpcRendererEvent, toast: ProviderToast) => callback(toast)
     ipcRenderer.on(IPC.PROVIDER_TOAST, handler)

@@ -8,7 +8,7 @@ import { ensureSkills, type SkillStatus } from './skills/installer'
 import { fetchCatalog, listInstalled, installPlugin, uninstallPlugin } from './marketplace/catalog'
 import { log as _log, LOG_FILE, flushLogs } from './logger'
 import { getCliEnv } from './cli-env'
-import { IS_MAC, IS_WIN, encodeCwdForSession, openInTerminal, captureScreenshot, getPrimaryShortcut, findWhisper, checkProviders, installCodexCli, installClaudeCli, openAuthTerminal } from './platform'
+import { IS_MAC, IS_WIN, encodeCwdForSession, openInTerminal, captureScreenshot, getPrimaryShortcut, findWhisper, checkProviders, installCodexCli, installClaudeCli, openAuthTerminal, authClaudeWithBrowser, authCodexWithApiKey, setCodexApiKey } from './platform'
 import { IPC } from '../shared/types'
 import type { RunOptions, NormalizedEvent, EnrichedError } from '../shared/types'
 
@@ -526,6 +526,27 @@ ipcMain.handle(IPC.INSTALL_CLAUDE, async () => {
 ipcMain.handle(IPC.OPEN_AUTH_TERMINAL, (_event, command: string) => {
   log(`IPC OPEN_AUTH_TERMINAL: ${command}`)
   return openAuthTerminal(command, log)
+})
+
+ipcMain.handle(IPC.AUTH_CLAUDE_BROWSER, async () => {
+  log('IPC AUTH_CLAUDE_BROWSER: starting OAuth login')
+  const result = await authClaudeWithBrowser(log, (url) => {
+    log(`AUTH_CLAUDE_BROWSER: opening ${url}`)
+    shell.openExternal(url).catch((e) => log(`openExternal failed: ${e}`))
+  })
+  log(`AUTH_CLAUDE_BROWSER: result ok=${result.ok}`)
+  return result
+})
+
+ipcMain.handle(IPC.AUTH_CODEX_KEY, async (_event, apiKey: string) => {
+  log('IPC AUTH_CODEX_KEY: storing API key')
+  const result = await authCodexWithApiKey(apiKey, log)
+  if (result.ok) {
+    // Persist to settings so it survives restarts
+    saveSettings({ codexApiKey: apiKey.trim() })
+    log('AUTH_CODEX_KEY: key persisted to settings')
+  }
+  return result
 })
 
 ipcMain.on(IPC.SET_CONTENT_PROTECTION, (_event, protect: boolean) => {
@@ -1358,6 +1379,13 @@ app.whenReady().then(async () => {
   // This is how Spotlight, Alfred, Raycast work.
   if (IS_MAC && app.dock) {
     app.dock.hide()
+  }
+
+  // Load stored Codex API key so it's injected into all Codex subprocesses.
+  const startupSettings = loadSettings()
+  if (typeof startupSettings.codexApiKey === 'string' && startupSettings.codexApiKey) {
+    setCodexApiKey(startupSettings.codexApiKey)
+    log('Loaded stored Codex API key from settings')
   }
 
   // Request permissions upfront so the user is never interrupted mid-session.

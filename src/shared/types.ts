@@ -385,6 +385,8 @@ export const IPC = {
   INSTALL_CODEX: 'clui:install-codex',
   INSTALL_CLAUDE: 'clui:install-claude',
   OPEN_AUTH_TERMINAL: 'clui:open-auth-terminal',
+  AUTH_CLAUDE_BROWSER: 'clui:auth-claude-browser',
+  AUTH_CODEX_KEY: 'clui:auth-codex-key',
   PROVIDER_TOAST: 'clui:provider-toast',
 
   // Screen sharing

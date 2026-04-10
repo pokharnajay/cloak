@@ -5,7 +5,7 @@
  * from here instead of scattering process.platform checks.
  */
 
-import { execSync, execFile } from 'child_process'
+import { execSync, execFile, spawn } from 'child_process'
 import { existsSync, writeFileSync, readFileSync } from 'fs'
 import { homedir, tmpdir } from 'os'
 import { join, dirname, delimiter as PATH_DELIMITER } from 'path'
@@ -15,6 +15,12 @@ import { join, dirname, delimiter as PATH_DELIMITER } from 'path'
 export const IS_MAC = process.platform === 'darwin'
 export const IS_WIN = process.platform === 'win32'
 export { PATH_DELIMITER }
+
+// ─── Stored Codex API key ───
+// Set on startup from clui-settings.json; injected into every Codex subprocess env.
+let cachedCodexApiKey: string | null = null
+export function setCodexApiKey(key: string | null): void { cachedCodexApiKey = key }
+export function getStoredCodexApiKey(): string | null { return cachedCodexApiKey }
 
 // ─── CLI Path Discovery ───
 
@@ -75,6 +81,7 @@ export function getCliPath(): string {
 
 /**
  * Build a complete environment for spawning CLI subprocesses.
+ * Injects stored Codex API key if one has been saved and OPENAI_API_KEY isn't already set.
  */
 export function getCliEnv(extraEnv?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
@@ -83,6 +90,9 @@ export function getCliEnv(extraEnv?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     PATH: getCliPath(),
   }
   delete env.CLAUDECODE
+  if (cachedCodexApiKey && !env.OPENAI_API_KEY) {
+    env.OPENAI_API_KEY = cachedCodexApiKey
+  }
   return env
 }
 
@@ -300,6 +310,148 @@ export function openAuthTerminal(command: string, log: (msg: string) => void): b
 }
 
 /**
+ * Spawn `claude auth login` and watch stdout for the OAuth URL.
+ * When found, calls onUrl(url) so the caller can open it in the system browser.
+ * Resolves when login succeeds or fails.
+ *
+ * Claude Code stdout protocol (from source analysis of v2.1.100):
+ *   Line 1: "Opening browser to sign in…"
+ *   Line 2: "If the browser didn't open, visit: <URL>"
+ *   On success: "Login successful."
+ *   On failure (stderr): "Login failed: <reason>"
+ */
+export function authClaudeWithBrowser(
+  log: (msg: string) => void,
+  onUrl: (url: string) => void,
+): Promise<{ ok: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    const claudeBin = findClaudeBinary()
+    log(`Spawning: ${claudeBin} auth login`)
+
+    let settled = false
+    const settle = (result: { ok: boolean; error?: string }) => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
+
+    const proc = spawn(claudeBin, ['auth', 'login'], {
+      env: getCliEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    // 5-minute overall timeout
+    const timeout = setTimeout(() => settle({ ok: false, error: 'Login timed out after 5 minutes' }), 5 * 60 * 1000)
+
+    let stdoutBuf = ''
+    proc.stdout.on('data', (chunk: Buffer) => {
+      stdoutBuf += chunk.toString()
+      const lines = stdoutBuf.split('\n')
+      stdoutBuf = lines.pop() ?? ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        log(`[claude-auth] ${trimmed}`)
+        // Detect the fallback URL line
+        const urlMatch = trimmed.match(/^If the browser didn'?t open,\s+visit:\s+(https:\/\/.+)$/i)
+        if (urlMatch?.[1]) {
+          onUrl(urlMatch[1].trim())
+        }
+        // Detect success
+        if (/^Login successful\.?$/i.test(trimmed)) {
+          clearTimeout(timeout)
+          settle({ ok: true })
+        }
+      }
+    })
+
+    let stderrBuf = ''
+    proc.stderr.on('data', (chunk: Buffer) => {
+      stderrBuf += chunk.toString()
+      const lines = stderrBuf.split('\n')
+      stderrBuf = lines.pop() ?? ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        log(`[claude-auth stderr] ${trimmed}`)
+        const failMatch = trimmed.match(/^Login failed:\s*(.+)$/i)
+        if (failMatch?.[1]) {
+          clearTimeout(timeout)
+          settle({ ok: false, error: failMatch[1].trim() })
+        }
+      }
+    })
+
+    proc.on('exit', (code) => {
+      clearTimeout(timeout)
+      log(`[claude-auth] Exited with code ${code}`)
+      if (!settled) {
+        settle(code === 0 ? { ok: true } : { ok: false, error: `Claude auth exited with code ${code}` })
+      }
+    })
+
+    proc.on('error', (err) => {
+      clearTimeout(timeout)
+      log(`[claude-auth] Spawn error: ${err.message}`)
+      settle({ ok: false, error: err.message })
+    })
+  })
+}
+
+/**
+ * Store an OpenAI API key for Codex.
+ * Attempts `codex login --with-api-key` (pipes key via stdin) if Codex CLI is installed.
+ * Falls back to writing ~/.codex/auth.json with the minimal API-key format if the CLI
+ * rejects the flag (older versions).
+ * Either way, the key is immediately available via getCliEnv() for all Codex subprocesses.
+ */
+export async function authCodexWithApiKey(
+  apiKey: string,
+  log: (msg: string) => void,
+): Promise<{ ok: boolean; error?: string }> {
+  const trimmedKey = apiKey.trim()
+  if (!trimmedKey) return { ok: false, error: 'API key cannot be empty' }
+
+  // Always update the in-process cache so checkProviders/getCliEnv see it immediately.
+  cachedCodexApiKey = trimmedKey
+
+  const codexBin = findCodexBinary()
+  if (codexBin) {
+    // Try `codex login --with-api-key` (documented in v0.118.0)
+    try {
+      const result = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+        const proc = execFile(codexBin, ['login', '--with-api-key'], {
+          env: getCliEnv(),
+          timeout: 15000,
+        }, (err, _stdout, stderr) => {
+          if (err) resolve({ ok: false, error: stderr?.trim() || err.message })
+          else resolve({ ok: true })
+        })
+        proc.stdin?.write(trimmedKey + '\n')
+        proc.stdin?.end()
+        proc.on('error', (err) => resolve({ ok: false, error: err.message }))
+      })
+      if (result.ok) { log('Codex API key stored via `codex login --with-api-key`'); return { ok: true } }
+      log(`codex login --with-api-key failed: ${result.error} — falling back to direct write`)
+    } catch (err: unknown) {
+      log(`codex login spawn failed: ${err} — falling back to direct write`)
+    }
+  }
+
+  // Fallback: write ~/.codex/auth.json in the API-key format Codex accepts.
+  try {
+    const codexHome = process.env.CODEX_HOME || join(homedir(), '.codex')
+    const { mkdirSync: mkdir } = require('fs') as typeof import('fs')
+    mkdir(codexHome, { recursive: true })
+    const authPath = join(codexHome, 'auth.json')
+    writeFileSync(authPath, JSON.stringify({ auth_mode: 'api_key', api_key: trimmedKey }, null, 2), { mode: 0o600 })
+    log(`Codex API key written to ${authPath}`)
+    return { ok: true }
+  } catch (err: unknown) {
+    return { ok: false, error: String(err) }
+  }
+}
+
+/**
  * Install the OpenAI Codex CLI globally via npm.
  * Works on both macOS and Windows.
  */
@@ -339,8 +491,8 @@ export function checkProviders(): {
   // Claude auth: ~/.claude/.credentials.json exists
   const claudeAuth = existsSync(join(homedir(), '.claude', '.credentials.json'))
 
-  // Codex auth: ~/.codex/auth.json exists OR OPENAI_API_KEY env var set
-  const codexAuth = !!process.env.OPENAI_API_KEY || existsSync(join(homedir(), '.codex', 'auth.json'))
+  // Codex auth: ~/.codex/auth.json exists, OPENAI_API_KEY env var set, or user stored a key in Cloak settings
+  const codexAuth = !!process.env.OPENAI_API_KEY || !!cachedCodexApiKey || existsSync(join(homedir(), '.codex', 'auth.json'))
 
   return {
     claude: { available: !!claudeBin, authenticated: claudeAuth, binary: claudeBin },
