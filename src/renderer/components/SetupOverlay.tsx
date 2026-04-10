@@ -227,7 +227,7 @@ export function SetupOverlay() {
         {/* ── Codex card ── */}
         <ProviderSection
           name="OpenAI Codex"
-          badge="openai.com · Plus / Pro / Business — or API key"
+          badge="openai.com · Plus / Pro / Business / Enterprise — or API key"
           authenticated={codexAuth}
           colors={colors}
         >
@@ -248,42 +248,38 @@ export function SetupOverlay() {
                 {codexInstallErr && <ErrText>{codexInstallErr}</ErrText>}
               </StepRow>
 
-              {/* Step 2 — Auth: API key (simplest) OR terminal */}
+              {/* Step 2 — Authenticate */}
               <StepRow label="Step 2 — Authenticate">
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    onClick={() => setShowApiKeyInput((v) => !v)}
-                    style={{
-                      flex: 1, padding: '7px 10px', borderRadius: 6,
-                      border: `1px solid ${showApiKeyInput ? colors.accent + '55' : colors.containerBorder}`,
-                      background: showApiKeyInput ? colors.accent + '18' : colors.surfaceSecondary,
-                      color: showApiKeyInput ? colors.accent : colors.textSecondary,
-                      fontSize: 11, fontWeight: 600, cursor: 'default',
-                      display: 'flex', alignItems: 'center', gap: 5,
-                    }}
-                  >
-                    <Key size={11} weight="bold" />
-                    {codexAuth ? 'API Key saved' : 'Enter API Key'}
-                  </button>
-                  <button
-                    onClick={handleOpenTerminalCodex}
-                    style={{
-                      padding: '7px 10px', borderRadius: 6,
-                      border: `1px solid ${colors.containerBorder}`,
-                      background: colors.surfaceSecondary,
-                      color: colors.textMuted,
-                      fontSize: 11, cursor: 'default',
-                      display: 'flex', alignItems: 'center', gap: 5,
-                    }}
-                    title="Open terminal to run `codex` for browser OAuth (requires Plus/Pro plan)"
-                  >
-                    <Terminal size={11} />
-                    Terminal
-                  </button>
+                {/* Primary: Browser OAuth via terminal (Codex needs a TTY for its interactive picker) */}
+                <PrimaryBtn
+                  icon={<Globe size={13} weight="bold" />}
+                  onClick={handleOpenTerminalCodex}
+                  colors={colors}
+                >
+                  Login with Browser
+                </PrimaryBtn>
+                <div style={{ fontSize: 10, color: colors.textMuted, lineHeight: 1.4, paddingLeft: 2 }}>
+                  A terminal will open — select <strong style={{ color: colors.textSecondary }}>"Sign in with ChatGPT"</strong> and your browser will open automatically. Cloak detects when you're done.
                 </div>
 
+                {/* Secondary: API key */}
+                <div style={{ height: 2 }} />
+                <button
+                  onClick={() => setShowApiKeyInput((v) => !v)}
+                  style={{
+                    alignSelf: 'flex-start', padding: '4px 9px', borderRadius: 5,
+                    border: `1px solid ${colors.containerBorder}`,
+                    background: 'none', color: colors.textMuted,
+                    fontSize: 10, cursor: 'default',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <Key size={10} weight="bold" />
+                  {showApiKeyInput ? 'Hide' : 'Or enter an API key instead'}
+                </button>
+
                 {showApiKeyInput && (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
                     <input
                       type="password"
                       value={codexApiKey}
