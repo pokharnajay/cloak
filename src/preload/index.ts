@@ -3,6 +3,9 @@ import { IPC } from '../shared/types'
 import type { RunOptions, NormalizedEvent, HealthReport, EnrichedError, Attachment, SessionMeta, CatalogPlugin, SessionLoadMessage, ProviderToast } from '../shared/types'
 
 export interface CluiAPI {
+  /** Copy text to clipboard via main process — works even when window is not focused */
+  copyToClipboard(text: string): void
+
   // ─── Request-response (renderer → main) ───
   start(): Promise<{ version: string; auth: { email?: string; subscriptionType?: string; authMethod?: string }; mcpServers: string[]; projectPath: string; homePath: string }>
   createTab(): Promise<{ tabId: string }>
@@ -63,6 +66,8 @@ export interface CluiAPI {
 }
 
 const api: CluiAPI = {
+  copyToClipboard: (text) => ipcRenderer.send('clui:copy-to-clipboard', text),
+
   // ─── Request-response ───
   start: () => ipcRenderer.invoke(IPC.START),
   createTab: () => ipcRenderer.invoke(IPC.CREATE_TAB),

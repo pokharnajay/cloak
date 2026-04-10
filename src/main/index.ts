@@ -203,14 +203,34 @@ function createWindow(): void {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
+    // Re-assert after show — macOS requires this for the first appearance to prevent
+    // the window from sliding with Spaces during three-finger swipes.
+    if (IS_MAC && mainWindow) {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+      mainWindow.setAlwaysOnTop(true, 'screen-saver')
+    }
     // Enable OS-level click-through for transparent regions.
     // { forward: true } ensures mousemove events still reach the renderer
     // so it can toggle click-through off when cursor enters interactive UI.
     mainWindow?.setIgnoreMouseEvents(true, { forward: true })
-    // if (process.env.ELECTRON_RENDERER_URL) {
-    //   mainWindow?.webContents.openDevTools({ mode: 'detach' })
-    // }
   })
+
+  // Block DevTools in production — prevents source inspection
+  if (app.isPackaged) {
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow?.webContents.closeDevTools()
+    })
+    mainWindow.webContents.on('before-input-event', (_event, input) => {
+      // Block F12 and common DevTools shortcuts
+      if (
+        input.key === 'F12' ||
+        (input.control && input.shift && input.key === 'I') ||
+        (input.meta && input.alt && input.key === 'I')
+      ) {
+        _event.preventDefault()
+      }
+    })
+  }
 
   // Re-assert alwaysOnTop aggressively — ensures overlay stays above all other windows
   const reassertOnTop = () => {
@@ -304,6 +324,11 @@ function toggleWindow(source = 'unknown'): void {
     showWindow(source)
   }
 }
+
+// ─── Clipboard (main-process route — works regardless of window focus) ───
+ipcMain.on('clui:copy-to-clipboard', (_event, text: string) => {
+  try { clipboard.writeText(String(text)) } catch {}
+})
 
 // ─── Resize ───
 // Fixed-height mode: ignore renderer resize events to prevent jank.

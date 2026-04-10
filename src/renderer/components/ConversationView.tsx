@@ -327,9 +327,9 @@ function CodeBlockActions({ code, language }: { code: string; language?: string 
   const [copied, setCopied] = useState(false)
   const colors = useColors()
 
-  const handleCopy = async () => {
+  const handleCopy = () => {
     try {
-      await navigator.clipboard.writeText(code)
+      window.clui.copyToClipboard(code)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {}
