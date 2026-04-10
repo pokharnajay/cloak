@@ -247,26 +247,6 @@ export function SettingsPopover() {
 
             <div style={{ height: 1, background: colors.popoverBorder }} />
 
-            {/* Theme */}
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Moon size={14} style={{ color: colors.textTertiary }} />
-                  <div className="text-[12px] font-medium" style={{ color: colors.textPrimary }}>
-                    Dark theme
-                  </div>
-                </div>
-                <RowToggle
-                  checked={themeMode === 'dark'}
-                  onChange={(next) => setThemeMode(next ? 'dark' : 'light')}
-                  colors={colors}
-                  label="Toggle dark theme"
-                />
-              </div>
-            </div>
-
-            <div style={{ height: 1, background: colors.popoverBorder }} />
-
             {/* Shortcut display */}
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
